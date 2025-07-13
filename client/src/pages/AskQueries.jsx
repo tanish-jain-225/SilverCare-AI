@@ -330,7 +330,7 @@ export function AskQueries() {
   }, [messages]);
 
   return (
-    <div className="relative min-h-screen pb-20">
+    <div className="relative md:min-h-screen pb-20">
       {/* Main chat UI */}
       <div className="bg-gradient-to-br from-primary-100/90 via-primary-200/90 to-accent-yellow/40 dark:from-dark-100/90 dark:via-dark-200/90 dark:to-accent-yellow/30 flex items-center justify-center p-4 h-[90vh]">
         <motion.div

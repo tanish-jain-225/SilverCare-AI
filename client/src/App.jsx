@@ -21,7 +21,7 @@ import { Profile } from "./pages/Profile";
 import { Header } from "./components/layout/Header";
 import { BottomNavigation } from "./components/layout/BottomNavigation";
 import ErrorBoundary from "./components/ErrorBoundary";
-import LoadingScreen from './components/LoadingScreen';
+import LoadingScreen from "./components/LoadingScreen";
 
 // ProtectedRoute component - defined outside to ensure proper context access
 function ProtectedRoute({ children }) {
@@ -41,11 +41,7 @@ function AppRoutes() {
   const location = useLocation();
 
   // Define routes where layout should be hidden
-  const hideLayoutRoutes = [
-    "/login",
-    "/signup",
-    "/user-details",
-  ];
+  const hideLayoutRoutes = ["/login", "/signup", "/user-details"];
 
   // Define routes where only bottom navigation should be hidden
   const hideBottomNavRoutes = ["/ask-queries"];
@@ -57,75 +53,77 @@ function AppRoutes() {
   const shouldHideBottomNav = hideBottomNavRoutes.includes(location.pathname);
 
   return (
-    <RootLayout>
+    <>
       {!shouldHideLayout && <Header />}
-      <Suspense fallback={<LoadingScreen />}>
-        <Routes>
-          <Route path="/" element={<Navigate to="/home" replace />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route
-            path="/user-details"
-            element={
-              <ProtectedRoute>
-                <UserDetails />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/home"
-            element={
-              <ProtectedRoute>
-                <Home />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/blog"
-            element={
-              <ProtectedRoute>
-                <BlogSection />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/reminders"
-            element={
-              <ProtectedRoute>
-                <Reminders />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/emergency"
-            element={
-              <ProtectedRoute>
-                <Emergency />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/ask-queries"
-            element={
-              <ProtectedRoute>
-                <AskQueries />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            }
-          />
-          {/* Catch-all: redirect unknown paths to home */}
-          <Route path="*" element={<Navigate to="/home" replace />} />
-        </Routes>
-      </Suspense>
+      <RootLayout>
+        <Suspense fallback={<LoadingScreen />}>
+          <Routes>
+            <Route path="/" element={<Navigate to="/home" replace />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route
+              path="/user-details"
+              element={
+                <ProtectedRoute>
+                  <UserDetails />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/home"
+              element={
+                <ProtectedRoute>
+                  <Home />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/blog"
+              element={
+                <ProtectedRoute>
+                  <BlogSection />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reminders"
+              element={
+                <ProtectedRoute>
+                  <Reminders />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/emergency"
+              element={
+                <ProtectedRoute>
+                  <Emergency />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ask-queries"
+              element={
+                <ProtectedRoute>
+                  <AskQueries />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+            {/* Catch-all: redirect unknown paths to home */}
+            <Route path="*" element={<Navigate to="/home" replace />} />
+          </Routes>
+        </Suspense>
+      </RootLayout>
       {!shouldHideLayout && !shouldHideBottomNav && <BottomNavigation />}
-    </RootLayout>
+    </>
   );
 }
 

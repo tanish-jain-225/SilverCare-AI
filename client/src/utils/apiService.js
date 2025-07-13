@@ -1,6 +1,6 @@
 import { route_endpoint } from "./helper";
 
-const API_KEY = import.meta.env.VITE_WORLD_NEWS_API_KEY1
+const API_KEY = import.meta.env.VITE_WORLD_NEWS_API_KEY3 || import.meta.env.VITE_WORLD_NEWS_API_KEY2 || import.meta.env.VITE_WORLD_NEWS_API_KEY1;
 
 if (!API_KEY) {
   throw new Error("World News API key is not defined. Please set VITE_WORLD_NEWS_API_KEY1, VITE_WORLD_NEWS_API_KEY2, or VITE_WORLD_NEWS_API_KEY3 in your environment variables.");
