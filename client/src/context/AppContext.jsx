@@ -106,11 +106,34 @@ export function AppProvider({ children }) {
   const login = async (email, password) => {
     try {
       const user = await loginWithEmailPassword(email, password);
-      const userData = {
+      let userData = {
         id: user.uid,
         name: user.displayName || email.split("@")[0],
         email: user.email,
+        lastLoginAt: new Date().toISOString(),
       };
+
+      // Fetch and update user data in Firestore
+      try {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+        
+        if (userDoc.exists()) {
+          // Merge existing Firestore data with current login data
+          userData = { ...userDoc.data(), ...userData };
+        } else {
+          // Create user document if it doesn't exist (for legacy users)
+          userData.createdAt = new Date().toISOString();
+        }
+        
+        // Update/create user document in Firestore
+        await setDoc(userDocRef, userData, { merge: true });
+        
+      } catch (firestoreError) {
+        console.error("Error handling Firestore user document:", firestoreError);
+        // Continue with login even if Firestore fails
+      }
+
       setUser(userData);
       setIsAuthenticated(true);
       storage.set("SilverCare_user", userData);
@@ -135,7 +158,19 @@ export function AppProvider({ children }) {
         name: name,
         email: user.email,
         healthConditions: [],
+        createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
       };
+
+      // Store user data in Firestore
+      try {
+        const userDocRef = doc(db, "users", user.uid);
+        await setDoc(userDocRef, userData, { merge: true });
+      } catch (firestoreError) {
+        console.error("Error storing user data in Firestore:", firestoreError);
+        // Continue with signup even if Firestore fails
+      }
+
       setUser(userData);
       setIsAuthenticated(true);
       storage.set("SilverCare_user", userData);

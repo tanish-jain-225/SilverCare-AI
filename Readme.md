@@ -13,13 +13,13 @@
 
 ---
 
-## 🌟 Overview
+## Overview
 
 SilverCare-AI is a full-stack, voice-first AI assistant designed for senior citizens. It bridges the digital divide by making technology accessible, intuitive and empowering for older adults. With step-by-step onboarding, voice-enabled chat, smart reminders, emergency alerts and a beautiful, accessible UI, SilverCare-AI is more than a tool—it's a companion for independent living.
 
 ---
 
-## 🖼️ Screenshots
+## Screenshots
 
 <p align="center">
   <img src="client/public/screenshots/home-page.png" alt="Home Page - Mobile" width="220" style="margin:10px; border-radius:12px; box-shadow:0 2px 8px #ccc;" />
@@ -35,7 +35,7 @@ SilverCare-AI is a full-stack, voice-first AI assistant designed for senior citi
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Frontend
 
@@ -54,7 +54,7 @@ SilverCare-AI is a full-stack, voice-first AI assistant designed for senior citi
 
 ---
 
-## ✨ Features
+## Features
 
 - **Step-by-Step Onboarding**: Voice-enabled, mobile-friendly form with validation and accessibility.
 - **Voice-First Chat**: Ask anything, set reminders, or get help—just speak!
@@ -67,7 +67,7 @@ SilverCare-AI is a full-stack, voice-first AI assistant designed for senior citi
 
 ---
 
-## ♿ Accessibility & Onboarding
+## Accessibility & Onboarding
 
 - **Accessible by Design**: Every page and component is built for seniors—clear labels, voice feedback and easy navigation.
 - **Voice Input Everywhere**: All forms and chat fields support voice input, with clear buttons and feedback.
@@ -76,7 +76,7 @@ SilverCare-AI is a full-stack, voice-first AI assistant designed for senior citi
 
 ---
 
-## 🔒 Security & Best Practices
+## Security & Best Practices
 
 - All API keys and credentials are stored in `.env` files (never hardcoded).
 - Firestore rules restrict access to authenticated users where appropriate.
@@ -85,11 +85,11 @@ SilverCare-AI is a full-stack, voice-first AI assistant designed for senior citi
 - Margins and layout are standardized to prevent extra scroll.
 - SEO meta tags are included in `index.html`.
 - Error handling and user feedback are improved throughout the app.
-- Filtered unused filetypes for optimised storage. 
+- Filtered unused filetypes for optimised storage.
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -152,7 +152,7 @@ SilverCare-AI is a full-stack, voice-first AI assistant designed for senior citi
 
 ---
 
-## 🗂️ Project Structure
+## Project Structure
 
 - `client/` — Frontend React app ([see client/Readme.md](client/Readme.md))
 - `server/` — Backend Python API ([see server/Readme.md](server/Readme.md))
@@ -161,7 +161,7 @@ SilverCare-AI is a full-stack, voice-first AI assistant designed for senior citi
 
 ---
 
-## 🔮 Future Enhancements
+## Future Enhancements
 
 - **Mobile App**: Native iOS/Android support.
 - **Smart Home Integration**: Voice control for IoT devices.
@@ -170,7 +170,7 @@ SilverCare-AI is a full-stack, voice-first AI assistant designed for senior citi
 
 ---
 
-## 👨‍💻 Contributors
+## Contributors
 
 | [![](https://github.com/parthnarkar.png?size=100)](https://github.com/parthnarkar) | [![](https://github.com/tanish-jain-225.png?size=100)](https://github.com/tanish-jain-225) | [![](https://github.com/pankaj0695.png?size=100)](https://github.com/pankaj0695) | [![](https://github.com/Chief-Ayush.png?size=100)](https://github.com/Chief-Ayush) |
 | :--------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------: |
@@ -178,7 +178,7 @@ SilverCare-AI is a full-stack, voice-first AI assistant designed for senior citi
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! To get started:
 
@@ -188,7 +188,7 @@ We welcome contributions! To get started:
 
 ---
 
-## 🏆 Why SilverCare-AI?
+## Why SilverCare-AI?
 
 SilverCare-AI is more than a hackathon project—it's a mission to empower seniors with technology that truly understands and supports them. Our focus on accessibility, usability and real-world impact sets us apart. We believe every senior deserves a digital companion that is friendly, reliable and empowering.
 

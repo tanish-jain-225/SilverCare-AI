@@ -152,9 +152,9 @@ export function Home() {
 
               {/* Decorative elements */}
               <div className="flex items-center justify-center mt-6 space-x-4">
-                <div className="h-2.5 w-12 bg-primary-200 dark:bg-primary-100 rounded-full"></div>
-                <div className="h-2.5 w-24 bg-primary-100 dark:bg-primary-200 rounded-full"></div>
-                <div className="h-2.5 w-12 bg-primary-50 dark:bg-primary-300 rounded-full"></div>
+                <div className="h-2.5 w-12 bg-primary-300 dark:bg-primary-100 rounded-full"></div>
+                <div className="h-2.5 w-24 bg-primary-200 dark:bg-primary-200 rounded-full"></div>
+                <div className="h-2.5 w-12 bg-primary-100 dark:bg-primary-300 rounded-full"></div>
               </div>
             </motion.div>
 

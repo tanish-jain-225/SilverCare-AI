@@ -618,7 +618,7 @@ export default function Emergency() {
               <div className="flex flex-col sm:flex-row items-stretch gap-2">
                 <input
                   type="tel"
-                  placeholder="Enter phone number (e.g., +919876543210)"
+                  placeholder="Enter phone number (e.g., 10-digit-number)"
                   value={newContactPhone}
                   onChange={(e) => setNewContactPhone(e.target.value)}
                   className="flex-1 p-3 border border-primary-100/20 dark:border-primary-100/10 rounded-lg  bg-white/50 dark:bg-dark-100/50 text-primary-300 dark:text-primary-100 placeholder-primary-200/50 dark:placeholder-primary-100/40 min-w-0"

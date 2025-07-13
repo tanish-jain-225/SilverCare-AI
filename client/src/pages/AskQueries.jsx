@@ -45,11 +45,11 @@ export function AskQueries() {
 
   // Handle start button click
   const handleStartChat = () => {
-    if (isInitialWelcomePlaying) {
-      stop(); // Stop the initial welcome message if still playing
-      setIsInitialWelcomePlaying(false);
-    }
+    // Always stop any ongoing speech first
+    stop();
+    setIsInitialWelcomePlaying(false);
     setShowStartOverlay(false);
+    
     if (user?.id) {
       // Get user's name from signin info (fullName, firstName, or email)
       const userName = user?.name || user.firstName || user.displayName || user.email?.split('@')[0] || 'there';
@@ -61,11 +61,15 @@ export function AskQueries() {
       };
       setMessages((prev) => [...prev, welcomeMessage]);
       setInputDisabled(true); // Disable input and voice button while speaking welcome
-      speak(welcomeMessage.message, {
-        onended: () => {
-          setInputDisabled(false); // Enable input after welcome speech ends or if stopped
-        },
-      });
+      
+      // Small delay to ensure stop() has taken effect before starting new speech
+      setTimeout(() => {
+        speak(welcomeMessage.message, {
+          onended: () => {
+            setInputDisabled(false); // Enable input after welcome speech ends or if stopped
+          },
+        });
+      }, 100);
     }
   };
 
@@ -239,7 +243,7 @@ export function AskQueries() {
         
         const reminderNotification = {
           id: `reminder-success-${Date.now()}`,
-          message: `✅ Reminder Created Successfully!\n\nTitle: ${reminderData?.title || 'New Reminder'}\nDate: ${reminderData?.date || 'Not specified'}\nTime: ${reminderData?.time || 'Not specified'}`,
+          message: `Reminder Created Successfully!\n\nTitle: ${reminderData?.title || 'New Reminder'}\nDate: ${reminderData?.date || 'Not specified'}\nTime: ${reminderData?.time || 'Not specified'}`,
           isUser: false,
           timestamp: new Date(),
           isReminder: true,
@@ -250,7 +254,7 @@ export function AskQueries() {
         
         const reminderFailNotification = {
           id: `reminder-fail-${Date.now()}`,
-          message: `❌ Reminder Processing Failed\n\nI detected you wanted to set a reminder, but couldn't process it automatically. Please try the Reminders section or be more specific with your request.`,
+          message: `Reminder Processing Failed\n\nI detected you wanted to set a reminder, but couldn't process it automatically. Please try the Reminders section or be more specific with your request.`,
           isUser: false,
           timestamp: new Date(),
           isError: true,

@@ -30,7 +30,7 @@ export function MessageBubble({ message, isUser, isError, timestamp, index }) {
               ? "bg-primary-200 text-white border border-neutral-400"
               : isError
               ? "bg-red-500 text-white"
-              : " bg-neutral-200 dark:bg-neutral-800 text-white  border border-neutral-400"
+              : " bg-white dark:bg-neutral-800 text-white  border border-neutral-400"
           }`}
         >
           {isUser ? (

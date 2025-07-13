@@ -7,10 +7,10 @@ export function BottomNavigation() {
   const location = useLocation();
   const navItems = [
     { icon: Home, label: "Home", path: "/home" },
-    { icon: BookText, label: "Blog", path: "/blog" },
-    { icon: Mic, label: "Voice Assistant", path: "/ask-queries" },
-    { icon: Bell, label: "Reminders", path: "/reminders" },
     { icon: AlertTriangle, label: "Emergency", path: "/emergency" },
+    { icon: Bell, label: "Reminders", path: "/reminders" },
+    { icon: Mic, label: "Voice Assistant", path: "/ask-queries" },
+    { icon: BookText, label: "Blog", path: "/blog" },
     { icon: User, label: "Profile", path: "/profile" },
   ];
 
