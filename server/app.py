@@ -3,7 +3,13 @@ from flask_cors import CORS
 from routes.format_reminder import format_reminder_bp
 from routes.ask_query import chat_bp
 from routes.saved_contacts import saved_contacts_bp
+from routes.blog_fetch import blog_fetch_bp
 import traceback
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
 # Enable CORS to allow all origins
@@ -18,6 +24,7 @@ def favicon():
 app.register_blueprint(format_reminder_bp)
 app.register_blueprint(chat_bp)
 app.register_blueprint(saved_contacts_bp)
+app.register_blueprint(blog_fetch_bp)
 
 @app.route('/', methods=['GET'])
 def index():

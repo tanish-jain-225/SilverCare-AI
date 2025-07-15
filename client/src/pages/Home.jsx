@@ -22,7 +22,7 @@ export function Home() {
   // If user is null but we're authenticated, show a temporary loading state
   if (isAuthenticated && !user) {
     return (
-      <div className="min-h-screen w-full bg-blue-100 flex items-center justify-center">
+      <div className="w-full bg-blue-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading user data...</p>
@@ -115,7 +115,7 @@ export function Home() {
   }, [user, speak]);
 
   return (
-    <main className="min-h-screen w-full overflow-x-hidden theme-gradient-primary flex flex-col items-center justify-center pb-20">
+    <main className="p-2">
       
       {/* Welcome Banner */}
       <section className="w-full max-w-4xl theme-gradient-secondary theme-border border rounded-2xl shadow-lg mx-auto my-4 overflow-hidden relative">
@@ -183,7 +183,7 @@ export function Home() {
       </section>
 
       {/* Content */}
-      <div className="w-[90%] px-3 sm:px-6 lg:px-8 py-8 mx-auto">
+      <div className="w-[90%] px-3 mb-20 sm:px-6 lg:px-8 py-8 mx-auto">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
           {features.map((feature) => (
             <motion.div
@@ -210,7 +210,7 @@ export function Home() {
                 <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-white/5 dark:bg-white/10 rounded-full blur-3xl transform group-hover:scale-150 transition-transform duration-500"></div>
               </div>
 
-              <div className="text-center flex flex-col justify-center items-center h-full space-y-2 sm:space-y-4 relative z-10">
+              <div className="text-center flex flex-col justify-center items-center space-y-2 sm:space-y-4 relative z-10">
                 {/* Icon Container - Removed background and border */}
                 <motion.div
                   whileHover={{ scale: 1.1, rotate: 5 }}

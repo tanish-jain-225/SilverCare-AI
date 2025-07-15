@@ -111,7 +111,7 @@ export function BlogSection() {
   };
 
   return (
-    <div className="min-h-screen w-full mb-20 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 flex flex-col">
+    <div className="w-full bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 pb-20">
       {/* Search Bar */}
       <div className="w-full p-4 flex flex-col items-center bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <form onSubmit={handleSearch} className="flex w-full max-w-2xl gap-3 flex-col sm:flex-row items-center">

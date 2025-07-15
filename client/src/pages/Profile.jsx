@@ -25,7 +25,7 @@ export function Profile() {
   // Show loading state if user data is not yet available
   if (loading || !user) {
     return (
-      <main className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+      <main className="w-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading profile...</p>
@@ -46,7 +46,7 @@ export function Profile() {
   }, [speak]);
 
   return (
-    <main className="min-h-screen w-full overflow-x-hidden bg-gradient-to-br from-slate-50 to-slate-100 dark:from-dark-50 dark:to-dark-100/30 flex flex-col items-center justify-center pb-32">
+    <main className="w-full overflow-x-hidden bg-gradient-to-br from-slate-50 to-slate-100 dark:from-dark-50 dark:to-dark-100/30 pb-20">
       <div className="container mx-auto w-full max-w-4xl px-4 py-12 lg:py-20 flex flex-col items-center">
         {/* Profile Card */}
         <div className="w-full max-w-2xl mb-10 p-10 rounded-3xl shadow-2xl bg-gradient-to-br from-blue-400/20 via-sky-300/20 to-yellow-300/20 dark:from-blue-600/20 dark:via-sky-500/20 dark:to-yellow-400/20 backdrop-blur-lg border border-slate-200 dark:border-dark-600/40 relative animate-fade-in transition-shadow hover:shadow-3xl">

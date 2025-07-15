@@ -350,7 +350,7 @@ export function Reminders() {
   }, [user?.id]);
 
   return (
-    <main className="min-h-screen w-full overflow-x-hidden bg-gradient-to-br from-primary-50 via-primary-100/50 to-accent-yellow/20 dark:from-dark-50 dark:via-dark-100/50 dark:to-accent-yellow/10 flex flex-col mb-10">
+    <main className="w-full pb-20">
       {/* Show Stop Alarm button if alarm is playing */}
       {isAlarmPlaying && alarmAudio && (
         <div className="fixed top-0 left-0 w-full flex justify-center z-50 px-4">
@@ -393,7 +393,6 @@ export function Reminders() {
                   border-2 border-primary-200/30 dark:border-dark-600/30
                   rounded-xl
                   transition-all duration-300
-                  hover:scale-105
                   hover:shadow-lg
                   disabled:opacity-50 disabled:cursor-not-allowed
                   text-base font-medium
@@ -419,7 +418,6 @@ export function Reminders() {
                   rounded-xl
                   shadow-lg
                   transition-all duration-300
-                  hover:scale-105
                   hover:shadow-xl
                   focus:ring-2 focus:ring-primary-200/50 dark:focus:ring-primary-100/50
                   text-base font-medium
@@ -436,7 +434,7 @@ export function Reminders() {
       </div>
 
       {/* Main Content */}
-      <section className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <section className="flex-1 w-full max-w-4xl mx-auto p-4">
         {isLoading ? (
           <div className="flex justify-center items-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-primary-200 dark:border-primary-100"></div>
@@ -454,52 +452,55 @@ export function Reminders() {
             </p>
           </div>
         ) : (
-          <div className="grid gap-3 sm:gap-4 mb-10">
+          <div className="grid gap-3 sm:gap-2">
             {uniqueReminders.map((reminder) => (
               <Card
                 key={reminder.created_at}
-                className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 w-full gap-4 hover:shadow-md transition-all duration-200 bg-white/90 dark:bg-dark-50/90 border border-primary-100/20 dark:border-dark-600/20 backdrop-blur-sm hover:scale-[1.01] hover:border-primary-200/30 dark:hover:border-primary-100/30"
+                className="flex justify-between items-center p-2 gap-4 hover:shadow-md transition-all duration-200 bg-white/90 dark:bg-dark-50/90 border border-primary-100/20 dark:border-dark-600/20 backdrop-blur-sm hover:scale-[1.01] hover:border-primary-200/30 dark:hover:border-primary-100/30"
               >
-                <div className="flex items-start sm:items-center gap-4 min-w-0 flex-1">
-                  <div className="bg-gradient-to-br from-primary-100/20 to-accent-yellow/20 dark:from-primary-100/10 dark:to-accent-yellow/10 rounded-full p-2.5 flex-shrink-0 mt-0.5 sm:mt-0">
+                <div className="flex gap-2 md:gap-4 justify-center items-center">
+                  <div className="bg-gradient-to-br from-primary-100/20 to-accent-yellow/20 dark:from-primary-100/10 dark:to-accent-yellow/10 rounded-full p-2 flex-shrink-0 mt-0.5 sm:mt-0">
                     <Clock
-                      className="text-primary-200 dark:text-primary-100 w-5 h-5 sm:w-6 sm:h-6"
+                      className="text-primary-200 dark:text-primary-100 w-5 h-5"
                       aria-hidden="true"
                     />
                   </div>
-                  <div className="min-w-0 flex-1">
+                  <div className="flex flex-col gap-2">
                     <h3 className="font-semibold text-base sm:text-lg md:text-xl text-primary-300 dark:text-primary-100 break-words leading-tight">
                       {reminder.title}
                     </h3>
-                    <p className="text-sm text-primary-200 dark:text-primary-100/80 mt-1">
+                    <p className="text-sm text-primary-200 dark:text-primary-100/80 flex items-center gap-1 flex-wrap">
                       <span className="inline-block">
                         {formatDate(reminder.date, { weekday: "short", month: "short", day: "numeric" })}
                       </span>
-                      <span className="mx-2 text-primary-100 dark:text-primary-100/40">
-                        •
+                      <span className="text-primary-100 dark:text-primary-100/40">
+                        |
                       </span>
                       <span className="inline-block">{formatTimeForDisplay(reminder.time)}</span>
                     </p>
                   </div>
                 </div>
 
-                <div className="flex gap-2 w-full sm:w-auto">
+                <div className="flex gap-2 sm:w-auto items-center">
                   <Button
                     onClick={() => handleReadReminder(reminder)}
                     variant="outline"
                     size="sm"
-                    icon={Volume2}
                     ariaLabel="Read reminder"
-                    className="flex-1 sm:flex-none hover:bg-primary-100 dark:hover:bg-primary-100"
-                  />
+                    className="flex justify-center items-center hover:bg-primary-100 dark:hover:bg-primary-100 md:w-20 w-10"
+                  >
+                    <Volume2 className="w-4 h-4" />
+                  </Button>
+                  
                   <Button
                     onClick={() => handleDeleteReminder(reminder.id)}
                     variant="danger"
                     size="sm"
-                    icon={Trash2}
                     ariaLabel="Delete reminder"
-                    className="flex-1 sm:flex-none dark:bg-red-600"
-                  />
+                    className="flex justify-center items-center dark:bg-red-600 md:w-20 w-10"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
               </Card>
             ))}
@@ -507,57 +508,65 @@ export function Reminders() {
         )}
         {/* Add Reminder Form */}
         {showAddForm && (
-          <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white/95 dark:bg-dark-50/95 rounded-xl sm:rounded-2xl shadow-xl w-full max-w-xs sm:max-w-sm md:max-w-md mx-auto transform animate-in fade-in zoom-in-95 duration-200 border border-primary-100/20 dark:border-dark-600/20 backdrop-blur-sm">
-              <div className="p-4 sm:p-6">
-                <h2 className="text-lg sm:text-xl font-bold mb-4 sm:mb-6 text-primary-300 dark:text-primary-100">
+          <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 xs:p-4 sm:p-6">
+            <div className="bg-white/95 dark:bg-dark-50/95 rounded-xl xs:rounded-xl sm:rounded-2xl lg:rounded-3xl shadow-2xl w-full max-w-[90vw] xs:max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl mx-auto transform animate-in fade-in zoom-in-95 duration-200 border border-primary-100/20 dark:border-dark-600/20 backdrop-blur-sm max-h-[90vh] overflow-y-auto">
+              <div className="p-4 xs:p-5 sm:p-6 md:p-7 lg:p-8">
+                <h2 className="text-lg xs:text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold mb-4 xs:mb-5 sm:mb-6 md:mb-7 lg:mb-8 text-primary-300 dark:text-primary-100 text-center">
                   Add Reminder
                 </h2>
 
-                <div className="space-y-3 sm:space-y-4">
-                  <Input
-                    label="Title"
-                    value={newReminder.title}
-                    onChange={(e) =>
-                      setNewReminder({ ...newReminder, title: e.target.value })
-                    }
-                    required
-                    placeholder="Enter reminder title"
-                    className="w-full dark:bg-dark-200"
-                  />
+                <div className="space-y-4 xs:space-y-5 sm:space-y-6 md:space-y-7 lg:space-y-8">
+                  <div className="space-y-1 xs:space-y-1.5 sm:space-y-2">
+                    <Input
+                      label="Title"
+                      value={newReminder.title}
+                      onChange={(e) =>
+                        setNewReminder({ ...newReminder, title: e.target.value })
+                      }
+                      required
+                      placeholder="Enter reminder title"
+                      className="w-full dark:bg-dark-200 text-sm xs:text-base sm:text-lg md:text-xl lg:text-2xl p-3 xs:p-4 sm:p-5 md:p-6 lg:p-7 rounded-lg xs:rounded-xl sm:rounded-2xl"
+                    />
+                  </div>
 
-                  <Input
-                    label="Date"
-                    type="date"
-                    value={newReminder.date}
-                    onChange={(e) =>
-                      setNewReminder({ ...newReminder, date: e.target.value })
-                    }
-                    required
-                    className="w-full dark:bg-dark-200"
-                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 xs:gap-5 sm:gap-6 md:gap-7 lg:gap-8">
+                    <div className="space-y-1 xs:space-y-1.5 sm:space-y-2">
+                      <Input
+                        label="Date"
+                        type="date"
+                        value={newReminder.date}
+                        onChange={(e) =>
+                          setNewReminder({ ...newReminder, date: e.target.value })
+                        }
+                        required
+                        className="w-full dark:bg-dark-200 text-sm xs:text-base sm:text-lg md:text-xl lg:text-2xl p-3 xs:p-4 sm:p-5 md:p-6 lg:p-7 rounded-lg xs:rounded-xl sm:rounded-2xl"
+                      />
+                    </div>
 
-                  <Input
-                    label="Time"
-                    type="time"
-                    value={convertTo24Hour(newReminder.time)}
-                    onChange={(e) => {
-                      const time24h = e.target.value;
-                      const time12h = formatTimeForDisplay(time24h);
-                      setNewReminder({ ...newReminder, time: time12h });
-                    }}
-                    required
-                    className="w-full dark:bg-dark-200"
-                  />
+                    <div className="space-y-1 xs:space-y-1.5 sm:space-y-2">
+                      <Input
+                        label="Time"
+                        type="time"
+                        value={convertTo24Hour(newReminder.time)}
+                        onChange={(e) => {
+                          const time24h = e.target.value;
+                          const time12h = formatTimeForDisplay(time24h);
+                          setNewReminder({ ...newReminder, time: time12h });
+                        }}
+                        required
+                        className="w-full dark:bg-dark-200 text-sm xs:text-base sm:text-lg md:text-xl lg:text-2xl p-3 xs:p-4 sm:p-5 md:p-6 lg:p-7 rounded-lg xs:rounded-xl sm:rounded-2xl"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-6 sm:mt-8">
+                <div className="flex flex-col xs:flex-col sm:flex-row gap-3 xs:gap-4 sm:gap-5 md:gap-6 lg:gap-7 mt-6 xs:mt-7 sm:mt-8 md:mt-9 lg:mt-10">
                   <Button
                     onClick={() => setShowAddForm(false)}
                     variant="outline"
                     size="md"
                     ariaLabel="Cancel"
-                    className="w-full sm:w-auto order-2 sm:order-1 dark:hover:bg-dark-200"
+                    className="w-full sm:w-auto order-2 sm:order-1 dark:hover:bg-dark-200 text-sm xs:text-base sm:text-lg md:text-xl lg:text-2xl py-3 xs:py-4 sm:py-5 md:py-6 lg:py-7 px-6 xs:px-7 sm:px-8 md:px-9 lg:px-10 rounded-lg xs:rounded-xl sm:rounded-2xl font-semibold transition-all duration-300 hover:scale-105 touch-manipulation"
                   >
                     Cancel
                   </Button>
@@ -566,14 +575,14 @@ export function Reminders() {
                     variant="primary"
                     size="md"
                     ariaLabel="Add reminder"
-                    className="w-full sm:w-auto order-1 sm:order-2 dark:bg-dark-300"
+                    className="w-full sm:w-auto order-1 sm:order-2 dark:bg-dark-300 text-sm xs:text-base sm:text-lg md:text-xl lg:text-2xl py-3 xs:py-4 sm:py-5 md:py-6 lg:py-7 px-6 xs:px-7 sm:px-8 md:px-9 lg:px-10 rounded-lg xs:rounded-xl sm:rounded-2xl font-semibold transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 touch-manipulation shadow-lg hover:shadow-xl"
                     disabled={
                       !newReminder.title ||
                       !newReminder.time ||
                       !newReminder.date
                     }
                   >
-                    Add
+                    Add Reminder
                   </Button>
                 </div>
               </div>

@@ -286,7 +286,7 @@ export default function Emergency() {
   const savedContacts = emergencyContacts.filter((c) => !c.isDefault);
 
   return (
-    <div className="min-h-screen mb-20 w-full overflow-x-hidden bg-gradient-to-br from-primary-50 to-primary-100/30 dark:from-dark-100 dark:to-dark-200 flex flex-col px-2">
+    <div className="w-full bg-gradient-to-br from-primary-50 to-primary-100/30 dark:from-dark-100 dark:to-dark-200 pb-40">
       {/* Content */}
       <div className="container mx-auto w-full max-w-4xl px-2 sm:px-4 py-6 sm:py-8 flex-1 flex flex-col gap-8">
         {/* Emergency SOS Help Button Section */}

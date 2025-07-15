@@ -330,9 +330,9 @@ export function AskQueries() {
   }, [messages]);
 
   return (
-    <div className="relative md:min-h-screen pb-20">
+    <div>
       {/* Main chat UI */}
-      <div className="bg-gradient-to-br from-primary-100/90 via-primary-200/90 to-accent-yellow/40 dark:from-dark-100/90 dark:via-dark-200/90 dark:to-accent-yellow/30 flex items-center justify-center p-4 h-[90vh]">
+      <div className="p-4 pb-40 w-full max-w-7xl mx-auto">
         <motion.div
           layout
           transition={{ layout: { duration: 0.3, ease: "easeInOut" } }}
@@ -379,14 +379,14 @@ export function AskQueries() {
             </motion.div>
           </div>
 
-          <div className="relative flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 space-y-3 sm:space-y-4 custom-scrollbar">
+          <div className="relative flex-1 overflow-y-auto p-4 space-y-2 sm:space-y-4 custom-scrollbar">
             {/* Start Overlay - positioned only over the messages area */}
             {showStartOverlay && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 z-30 bg-black/30 backdrop-blur-sm flex items-center justify-center overflow-y-auto p-4"
+                className="absolute inset-0 z-30 bg-black/30 backdrop-blur-sm flex items-center justify-center overflow-y-auto py-10"
               >
                 <motion.div
                   initial={{ scale: 0.8, opacity: 0 }}
