@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { User, Mail, Lock } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
@@ -7,16 +7,26 @@ import { VoiceButton } from "../components/voice/VoiceButton";
 import { useApp } from "../context/AppContext";
 import { useVoice } from "../hooks/useVoice";
 import { motion } from "framer-motion";
+import LoadingScreen from "../components/LoadingScreen";
 
 export function Signup() {
   const navigate = useNavigate();
-  const { signup } = useApp();
+  const location = useLocation();
+  const { signup, isAuthenticated, loading } = useApp();
   const { speak } = useVoice();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isPostSignupLoading, setIsPostSignupLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Redirect to user-details if already authenticated (instead of home)
+  React.useEffect(() => {
+    if (!loading && isAuthenticated && location.pathname === "/signup") {
+      navigate("/user-details", { replace: true });
+    }
+  }, [isAuthenticated, loading, navigate, location.pathname]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -26,7 +36,13 @@ export function Signup() {
     try {
       await signup(name, email, password);
       // If we reach here, signup was successful
-      navigate("/user-details");
+      setIsPostSignupLoading(true);
+      speak("Account created successfully! Setting up your profile...");
+      
+      // Navigate after a brief loading period
+      setTimeout(() => {
+        navigate("/user-details");
+      }, 2500);
     } catch (err) {
       // Display the detailed error message from AppContext, falling back to code-based messages
       let errorMessage = err.message;
@@ -46,9 +62,7 @@ export function Signup() {
           case "auth/network-request-failed":
             errorMessage = "Network error. Please check your connection and try again.";
             break;
-          case "auth/too-many-requests":
-            errorMessage = "Too many attempts. Please wait and try again later.";
-            break;
+
           default:
             errorMessage = "Signup failed. Please try again.";
         }
@@ -86,6 +100,16 @@ export function Signup() {
     document.documentElement.classList.remove("dark");
     document.documentElement.classList.add("light");
   }, []);
+
+  // Show post-signup loading screen
+  if (isPostSignupLoading) {
+    return <LoadingScreen message="Creating your account and setting up your profile..." />;
+  }
+
+  // Show loading while checking authentication status
+  if (loading) {
+    return <LoadingScreen message="Checking authentication status..." />;
+  }
 
   return (
     <div
@@ -191,7 +215,7 @@ export function Signup() {
                 onChange={(e) => setPassword(e.target.value)}
                 icon={Lock}
                 required
-                className="text-base sm:text-lg md:text-xl"
+                className="text-base sm:text-lg md:text-2xl"
                 voiceButton={
                   <VoiceButton
                     onResult={handleVoiceInput("password")}

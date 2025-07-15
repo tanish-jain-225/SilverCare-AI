@@ -115,7 +115,7 @@ export function Home() {
   }, [user, speak]);
 
   return (
-    <main className="min-h-screen w-full overflow-x-hidden theme-gradient-primary flex flex-col items-center justify-center p-2">
+    <main className="min-h-screen w-full overflow-x-hidden theme-gradient-primary flex flex-col items-center justify-center pb-20">
       
       {/* Welcome Banner */}
       <section className="w-full max-w-4xl theme-gradient-secondary theme-border border rounded-2xl shadow-lg mx-auto my-4 overflow-hidden relative">
@@ -183,7 +183,7 @@ export function Home() {
       </section>
 
       {/* Content */}
-      <div className="w-[90%] px-3 mb-20 sm:px-6 lg:px-8 py-8 mx-auto">
+      <div className="w-[90%] px-3 sm:px-6 lg:px-8 py-8 mx-auto">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
           {features.map((feature) => (
             <motion.div

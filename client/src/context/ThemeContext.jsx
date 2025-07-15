@@ -11,21 +11,31 @@ export const useTheme = () => {
 };
 
 export const ThemeProvider = ({ children }) => {
-  // State to manage dark mode and loading state
+  // State to manage dark mode and loading state - ALWAYS start with light mode
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Initialize theme from localStorage or system preference
+  // Force light mode initialization on app startup
   useEffect(() => {
+    // Ensure light mode on every app startup
+    const root = document.documentElement;
+    root.classList.remove("dark");
+    document.body.className = 'light';
+    
+    // Force clear any existing theme preference to ensure light mode default
+    // Uncomment the next line if you want to completely reset theme on every startup
+    // localStorage.removeItem("SilverCare_theme");
+    
     const savedTheme = localStorage.getItem("SilverCare_theme");
-    const systemPrefersDark = window.matchMedia(
-      "(prefers-color-scheme: dark)",
-    ).matches;
 
+    // Only use saved theme if it exists, otherwise default to light mode
     if (savedTheme !== null) {
       setIsDarkMode(savedTheme === "dark");
     } else {
-      setIsDarkMode(systemPrefersDark);
+      // Force light mode as default, ignore system preference
+      setIsDarkMode(false);
+      // Set initial light mode in localStorage
+      localStorage.setItem("SilverCare_theme", "light");
     }
 
     setIsLoaded(true);
@@ -46,6 +56,9 @@ export const ThemeProvider = ({ children }) => {
       root.classList.remove("dark");
     }
 
+    // Also update body class for scrollbar consistency
+    document.body.className = isDarkMode ? 'dark' : 'light';
+
     // Remove transition class after animation completes
     const timer = setTimeout(() => {
       root.classList.remove("theme-transition");
@@ -61,22 +74,6 @@ export const ThemeProvider = ({ children }) => {
     localStorage.setItem("SilverCare_theme", isDarkMode ? "dark" : "light");
   }, [isDarkMode, isLoaded]);
 
-  // Listen for system theme changes
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-
-    const handleChange = (e) => {
-      // Only update if user hasn't manually set a preference
-      const savedTheme = localStorage.getItem("SilverCare_theme");
-      if (savedTheme === null) {
-        setIsDarkMode(e.matches);
-      }
-    };
-
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  }, []);
-
   const toggleTheme = () => {
     setIsDarkMode((prev) => !prev);
   };
@@ -85,11 +82,18 @@ export const ThemeProvider = ({ children }) => {
     setIsDarkMode(theme === "dark");
   };
 
+  // Utility function to force reset to light mode
+  const resetToLight = () => {
+    setIsDarkMode(false);
+    localStorage.setItem("SilverCare_theme", "light");
+  };
+
   const value = {
     isDarkMode,
     isLoaded,
     toggleTheme,
     setTheme,
+    resetToLight,
     theme: isDarkMode ? "dark" : "light",
   };
 

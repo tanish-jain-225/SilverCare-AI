@@ -22,14 +22,20 @@ import { Header } from "./components/layout/Header";
 import { BottomNavigation } from "./components/layout/BottomNavigation";
 import ErrorBoundary from "./components/ErrorBoundary";
 import LoadingScreen from "./components/LoadingScreen";
+import ScrollToTop from "./components/ScrollToTop";
 
 // ProtectedRoute component - defined outside to ensure proper context access
 function ProtectedRoute({ children }) {
   try {
     const { isAuthenticated, loading } = useApp();
     // While auth state is loading, show the loading screen
-    if (loading) return <LoadingScreen />;
-    return isAuthenticated ? children : <Navigate to="/login" replace />;
+    if (loading) return <LoadingScreen message="Verifying access permissions..." />;
+    
+    if (!isAuthenticated) {
+      return <Navigate to="/login" replace />;
+    }
+    
+    return children;
   } catch (error) {
     console.error("ProtectedRoute error:", error);
     // Fallback to redirect to login if context is not available
@@ -39,6 +45,7 @@ function ProtectedRoute({ children }) {
 
 function AppRoutes() {
   const location = useLocation();
+  const { isAuthenticated, loading } = useApp();
 
   // Define routes where layout should be hidden
   const hideLayoutRoutes = ["/login", "/signup", "/user-details"];
@@ -47,18 +54,33 @@ function AppRoutes() {
   const hideBottomNavRoutes = ["/ask-queries"];
 
   // Check if current path matches any of the hideLayoutRoutes
-  const shouldHideLayout = hideLayoutRoutes.includes(location.pathname);
+  // Also hide layout when at root path and user is not authenticated (Login component is shown)
+  const shouldHideLayout = hideLayoutRoutes.includes(location.pathname) || 
+    (location.pathname === "/" && !isAuthenticated);
 
   // Check if current path matches any of the hideBottomNavRoutes
   const shouldHideBottomNav = hideBottomNavRoutes.includes(location.pathname);
 
+  // Show loading screen while authentication state is being determined
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
   return (
     <>
+      {/* ScrollToTop component handles automatic scroll to top on route changes (not on refresh) */}
+      <ScrollToTop />
       {!shouldHideLayout && <Header />}
       <RootLayout>
         <Suspense fallback={<LoadingScreen />}>
           <Routes>
-            <Route path="/" element={<Navigate to="/home" replace />} />
+            {/* Root path: show login for unauthenticated users, redirect to home for authenticated */}
+            <Route 
+              path="/" 
+              element={
+                isAuthenticated ? <Navigate to="/home" replace /> : <Login />
+              } 
+            />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route
@@ -117,8 +139,15 @@ function AppRoutes() {
                 </ProtectedRoute>
               }
             />
-            {/* Catch-all: redirect unknown paths to home */}
-            <Route path="*" element={<Navigate to="/home" replace />} />
+            {/* Catch-all: redirect to appropriate default based on auth status */}
+            <Route 
+              path="*" 
+              element={
+                isAuthenticated ? 
+                  <Navigate to="/home" replace /> : 
+                  <Navigate to="/login" replace />
+              } 
+            />
           </Routes>
         </Suspense>
       </RootLayout>

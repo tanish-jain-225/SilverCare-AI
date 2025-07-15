@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
 
 export function Login() {
   const navigate = useNavigate();
-  const { login, loginWithGoogle } = useApp();
+  const { login, loginWithGoogle, isAuthenticated, loading, hasCompletedUserDetails } = useApp();
   const { speak } = useVoice();
   const { setTheme } = useTheme();
   const [email, setEmail] = useState("");
@@ -19,7 +19,6 @@ export function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState("");
-  const [googleRetryCount, setGoogleRetryCount] = useState(0);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,13 +28,16 @@ export function Login() {
     try {
       await login(email, password);
       // If we reach here, login was successful
-      navigate("/");
+      
       // Set Theme to light mode after login with moon icon
       document.documentElement.classList.remove("dark");
       document.documentElement.classList.add("light");
       localStorage.setItem("SilverCare_theme", "light");
       setTheme("light"); // Sync ThemeContext state for correct icon
       speak("Login successful. Welcome to SilverCare AI!");
+      
+      // Login always goes directly to home page
+      navigate("/home");
     } catch (err) {
       // Display the detailed error message from AppContext
       const errorMessage = err.message || "Login failed. Please try again.";
@@ -53,17 +55,15 @@ export function Login() {
     try {
       const success = await loginWithGoogle();
       if (success) {
-        // Reset retry count on successful login
-        setGoogleRetryCount(0);
-        // Check if user needs to complete their profile
-        // Note: The loginWithGoogle function will handle user creation in Firestore
-        // We'll navigate to home by default, but users can go to profile to complete details
-        navigate("/");
+        // Set theme to light mode
         document.documentElement.classList.remove("dark");
         document.documentElement.classList.add("light");
         localStorage.setItem("SilverCare_theme", "light");
         setTheme("light");
         speak("Google login successful. Welcome to SilverCare AI!");
+        
+        // Google login always goes directly to home page
+        navigate("/home");
       } else {
         setError("Google login failed. Please try again.");
         speak("Google login failed. Please try again.");
@@ -73,52 +73,29 @@ export function Login() {
       
       // Handle specific error types with user-friendly messages
       let errorMessage = "Google login failed. Please try again.";
-      let shouldAllowRetry = true;
       
       if (err.code === 'network-request-failed') {
         errorMessage = "Network connection failed. Please check your internet connection and try again.";
       } else if (err.code === 'popup-blocked') {
         errorMessage = "Popup was blocked by your browser. Please allow popups for this site and try again.";
-        shouldAllowRetry = false; // Don't auto-retry popup blocks
       } else if (err.code === 'popup-closed-by-user') {
         errorMessage = "Sign-in was cancelled. Please try again.";
-        shouldAllowRetry = false; // Don't auto-retry user cancellations
       } else if (err.code === 'cancelled-popup-request') {
         errorMessage = "Another sign-in request is in progress. Please wait and try again.";
       } else if (err.code === 'internal-error') {
         errorMessage = "A temporary authentication error occurred. Please try again in a moment.";
       } else if (err.code === 'account-exists-with-different-credential') {
         errorMessage = "An account already exists with this email using a different sign-in method. Please try signing in with email/password.";
-        shouldAllowRetry = false;
-      } else if (err.code === 'too-many-requests') {
-        errorMessage = "Too many sign-in attempts. Please wait a moment and try again.";
+
       } else if (err.message) {
         errorMessage = err.message;
       }
       
       setError(errorMessage);
       speak(errorMessage);
-      
-      // Track retry count for network and internal errors
-      if (shouldAllowRetry && (err.code === 'network-request-failed' || err.code === 'internal-error')) {
-        setGoogleRetryCount(prev => prev + 1);
-      }
     } finally {
       setIsGoogleLoading(false);
     }
-  };
-
-  const handleGoogleRetry = async () => {
-    if (googleRetryCount >= 3) {
-      setError("Maximum retry attempts reached. Please try again later or use email/password sign-in.");
-      speak("Maximum retry attempts reached. Please try again later.");
-      return;
-    }
-    
-    // Add a small delay before retry to avoid rapid consecutive attempts
-    setTimeout(() => {
-      handleGoogleLogin();
-    }, 1000);
   };
 
   const handleVoiceInput = (field) => (text) => {
@@ -289,24 +266,6 @@ export function Login() {
                 {isGoogleLoading ? "Signing in..." : "Sign in with Google"}
               </span>
             </div>
-
-            {/* Retry Button for Google Login (shown only after network/internal errors) */}
-            {error && googleRetryCount > 0 && googleRetryCount < 3 && (
-              error.includes("Network connection failed") || 
-              error.includes("temporary authentication error")
-            ) && (
-              <div className="mt-3">
-                <button
-                  onClick={handleGoogleRetry}
-                  disabled={isGoogleLoading}
-                  className="w-full flex items-center justify-center px-4 py-2 border border-blue-300 rounded-lg bg-blue-50 hover:bg-blue-100 cursor-pointer transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <span className="text-blue-700 font-medium text-sm">
-                    Retry Google Sign-in ({3 - googleRetryCount} attempts left)
-                  </span>
-                </button>
-              </div>
-            )}
           </form>
 
           {/* Troubleshooting for Google Login Issues */}

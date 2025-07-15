@@ -300,6 +300,15 @@ export function AppProvider({ children }) {
     }
   };
 
+  // Helper function to check if user has completed their details
+  const hasCompletedUserDetails = () => {
+    if (!user) return false;
+    
+    // Check if essential user details are present
+    const requiredFields = ['age', 'gender', 'address', 'healthCondition', 'currentMedicalStatus'];
+    return requiredFields.every(field => user[field] && user[field] !== '');
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -314,6 +323,7 @@ export function AppProvider({ children }) {
         signup,
         loginWithGoogle: loginWithGoogleHandler,
         loading,
+        hasCompletedUserDetails,
       }}
     >
       {children}

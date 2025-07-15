@@ -54,11 +54,10 @@ export function UserDetails() {
     },
   });
 
-  // Track active upload operations to prevent duplicates and race conditions
-  const activeUploadOperations = React.useRef(new Set());
-  const uploadAttempts = React.useRef({
-    medicalReport: 0,
-    profilePicture: 0,
+  // Simple upload tracking - no complex refs needed
+  const uploadInProgress = React.useRef({
+    medicalReport: false,
+    profilePicture: false,
   });
 
   // Show loading state if user data is not yet available
@@ -161,17 +160,9 @@ export function UserDetails() {
   // Enhanced cleanup effect to handle unmounting and cancel uploads
   useEffect(() => {
     return () => {
-
-      // Cancel any ongoing uploads
-      Object.entries(uploadStates).forEach(([field, state]) => {
-        if (state.controller && state.isUploading) {
-          state.controller.abort();
-        }
-      });
-
-      // Clear active operations
-      activeUploadOperations.current.clear();
-
+      // Clear all upload progress flags
+      uploadInProgress.current.medicalReport = false;
+      uploadInProgress.current.profilePicture = false;
     };
   }, []); // Empty dependency array ensures this only runs on unmount
 
@@ -254,20 +245,14 @@ export function UserDetails() {
     }
   };
 
-  // Enhanced cancel upload function with operation tracking
+  // Enhanced cancel upload function with simplified operation tracking
   const cancelUpload = (field) => {
+    console.log(`Cancelling upload for ${field}`);
 
-    const uploadState = uploadStates[field];
+    // Mark as not in progress
+    uploadInProgress.current[field] = false;
 
-    // Abort the upload operation if controller exists
-    if (uploadState.controller && !uploadState.controller.signal.aborted) {
-      uploadState.controller.abort();
-    }
-
-    // Remove from active operations immediately
-    activeUploadOperations.current.delete(field);
-
-    // Reset upload state atomically
+    // Reset upload state
     setUploadStates((prev) => ({
       ...prev,
       [field]: {
@@ -292,22 +277,21 @@ export function UserDetails() {
       [field]: Date.now()
     }));
 
-    // Reset file input immediately (not delayed)
+    // Reset file input immediately
     const fileInput = document.getElementById(field);
     if (fileInput) {
       fileInput.value = "";
     }
 
-    const fieldName =
-      field === "medicalReport" ? "Medical report" : "Profile picture";
+    const fieldName = field === "medicalReport" ? "Medical report" : "Profile picture";
     speak(`${fieldName} upload cancelled.`);
   };
 
-  // Enhanced remove uploaded file function
+  // Enhanced remove uploaded file function with simplified check
   const removeFile = (field) => {
-
     // Ensure no upload is in progress before removing
-    if (uploadStates[field].isUploading) {
+    if (uploadInProgress.current[field]) {
+      console.log(`Cannot remove file - upload in progress for ${field}`);
       return;
     }
 
@@ -332,16 +316,13 @@ export function UserDetails() {
     // Clear any existing errors
     setError("");
 
-    // Reset file input
-    setTimeout(() => {
-      const fileInput = document.getElementById(field);
-      if (fileInput) {
-        fileInput.value = "";
-      }
-    }, 100);
+    // Reset file input immediately
+    const fileInput = document.getElementById(field);
+    if (fileInput) {
+      fileInput.value = "";
+    }
 
-    const fieldName =
-      field === "medicalReport" ? "Medical report" : "Profile picture";
+    const fieldName = field === "medicalReport" ? "Medical report" : "Profile picture";
     speak(`${fieldName} removed.`);
   };
 
@@ -449,261 +430,155 @@ export function UserDetails() {
     });
   };
 
-  // Bulletproof file upload handler with atomic state management
-  const handleFileUpload = async (field, file) => {
+  // Simple and bulletproof file upload handler with debounce
+  const handleFileUpload = React.useCallback(async (field, file) => {
     if (!file) {
+      console.log(`No file provided for ${field}`);
       return;
     }
 
-    // Generate unique operation ID for this upload
-    const operationId = `${field}_${Date.now()}_${Math.random()
-      .toString(36)
-      .substr(2, 9)}`;
+    // Triple check to prevent any duplicates
+    if (uploadInProgress.current[field]) {
+      console.log(`Upload already in progress for ${field} - blocked by ref`);
+      return;
+    }
 
-    // Prevent duplicate uploads for the same field with better race condition handling
     if (uploadStates[field].isUploading) {
+      console.log(`Upload already in progress for ${field} - blocked by state`);
       return;
     }
 
-    // Double-check with a small delay to handle rapid clicks
-    await new Promise(resolve => setTimeout(resolve, 50));
-    
-    if (uploadStates[field].isUploading || activeUploadOperations.current.has(field)) {
-      return;
-    }
+    // Immediately lock all possible entry points
+    uploadInProgress.current[field] = true;
 
-    // Track this operation
-    activeUploadOperations.current.add(field);
-    uploadAttempts.current[field]++;
+    console.log(`Starting upload for ${field} - file: ${file.name}, size: ${file.size}`);
 
-    // Create AbortController for this specific upload
-    const controller = new AbortController();
-
-    // Atomic state update helper
-    const updateUploadState = (updates) => {
-      setUploadStates((prev) => ({
-        ...prev,
-        [field]: {
-          ...prev[field],
-          operationId,
-          ...updates,
-        },
-      }));
-    };
-
-    // Cleanup function to ensure proper state reset
-    const cleanupUpload = (success = false) => {
-      
-      // Remove from active operations
-      activeUploadOperations.current.delete(field);
-      
-      // Reset file input if upload failed
-      if (!success) {
-        // Force file input re-render by updating key
-        setFileInputKeys(prev => ({
-          ...prev,
-          [field]: Date.now()
-        }));
-        
-        setTimeout(() => {
-          const fileInput = document.getElementById(field);
-          if (fileInput) {
-            fileInput.value = "";
-          }
-        }, 100);
+    // Update UI state immediately
+    setUploadStates(prev => ({
+      ...prev,
+      [field]: {
+        ...prev[field],
+        isUploading: true,
+        progress: 10,
+        stage: "validating",
+        error: null,
       }
-    };
-
-    // Initialize upload state atomically
-    updateUploadState({
-      isUploading: true,
-      progress: 0,
-      controller: controller,
-      stage: "validating",
-      error: null,
-    });
+    }));
 
     // Clear any existing errors
     setError("");
 
     try {
-      // Stage 1: File Validation (5-15%)
-
+      // File validation with detailed logging
+      console.log(`Validating file for ${field}: type=${file.type}, size=${file.size}`);
+      
       if (field === "medicalReport") {
-        const allowedTypes = [
-          "application/pdf",
-          "image/jpeg",
-          "image/png",
-          "image/jpg",
-        ];
+        const allowedTypes = ["application/pdf", "image/jpeg", "image/png", "image/jpg"];
         if (!allowedTypes.includes(file.type)) {
-          throw new Error(
-            "Please upload a PDF or image file for medical report."
-          );
+          throw new Error("Please upload a PDF or image file for medical report.");
         }
         if (file.size > 10 * 1024 * 1024) {
-          // 10MB limit
           throw new Error("Medical report file size should be less than 10MB.");
         }
       } else if (field === "profilePicture") {
         const allowedTypes = ["image/jpeg", "image/png", "image/jpg"];
         if (!allowedTypes.includes(file.type)) {
-          throw new Error(
-            "Please upload a JPEG or PNG image for profile picture."
-          );
+          throw new Error("Please upload a JPEG or PNG image for profile picture.");
         }
         if (file.size > 5 * 1024 * 1024) {
-          // 5MB limit
           throw new Error("Profile picture file size should be less than 5MB.");
         }
       }
 
-      // Check for cancellation after validation
-      if (controller.signal.aborted) {
-        throw new Error("Upload cancelled by user");
-      }
+      console.log(`File validation passed for ${field}`);
 
-      updateUploadState({ progress: 15, stage: "validated" });
+      // Update progress
+      setUploadStates(prev => ({
+        ...prev,
+        [field]: { ...prev[field], progress: 30, stage: "processing" }
+      }));
 
-      // Stage 2: Size Check and Processing (15-70%)
-      const checkFileSize = (fileToCheck) => {
-        return new Promise((resolve, reject) => {
-          if (controller.signal.aborted) {
-            reject(new Error("Upload cancelled by user"));
-            return;
-          }
+      // Convert to base64 with error handling
+      console.log(`Converting ${field} to base64`);
+      const base64Data = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          console.log(`Base64 conversion completed for ${field}`);
+          resolve(e.target.result);
+        };
+        reader.onerror = () => {
+          console.error(`Base64 conversion failed for ${field}`);
+          reject(new Error("Failed to read file"));
+        };
+        reader.readAsDataURL(file);
+      });
 
-          const reader = new FileReader();
-
-          reader.onload = (e) => {
-            try {
-              const base64Data = e.target.result;
-              const estimatedSize = base64Data.length;
-              const sizeInKB = estimatedSize / 1024;
-
-              // Conservative Firestore limit (380KB for safety margin)
-              const isAcceptableSize = estimatedSize <= 380000;
-
-              resolve({
-                isAcceptableSize,
-                base64Data,
-                estimatedSize,
-                sizeInKB: Math.round(sizeInKB),
-              });
-            } catch (error) {
-              console.error(
-                `Error processing base64 data for ${field}:`,
-                error
-              );
-              reject(new Error("Failed to process file data"));
-            }
-          };
-
-          reader.onerror = () => {
-            console.error(`FileReader error for ${field}`);
-            reject(new Error("Failed to read file"));
-          };
-
-          reader.readAsDataURL(fileToCheck);
-        });
-      };
-
-      updateUploadState({ progress: 25, stage: "analyzing" });
-
-      // Check original file size
-      const originalFileCheck = await checkFileSize(file);
-
-      // Check for cancellation after analysis
-      if (controller.signal.aborted) {
-        throw new Error("Upload cancelled by user");
-      }
-
+      // Check size and compress if needed
+      const estimatedSize = base64Data.length;
+      console.log(`Base64 size for ${field}: ${estimatedSize} bytes`);
+      
       let processedFile = file;
+      let finalBase64Data = base64Data;
       let compressionApplied = false;
-      let finalBase64Data = originalFileCheck.base64Data;
       let compressionStats = null;
 
-      // Only compress if file exceeds safe size limits
-      if (!originalFileCheck.isAcceptableSize) {
-        updateUploadState({ progress: 40, stage: "compressing" });
+      // Update progress
+      setUploadStates(prev => ({
+        ...prev,
+        [field]: { ...prev[field], progress: 50, stage: "analyzing" }
+      }));
 
-        if (file.type.startsWith("image/")) {
-          try {
-            // Apply aggressive compression settings based on file type
-            const compressionSettings =
-              field === "profilePicture"
-                ? { maxWidth: 400, quality: 0.6, maxSizeKB: 220 } // More aggressive for profile pics
-                : { maxWidth: 800, quality: 0.7, maxSizeKB: 280 }; // Balanced for medical reports
+      // Compress if needed
+      if (estimatedSize > 380000 && file.type.startsWith("image/")) {
+        console.log(`Compressing ${field} - size too large: ${estimatedSize}`);
+        
+        setUploadStates(prev => ({
+          ...prev,
+          [field]: { ...prev[field], progress: 70, stage: "compressing" }
+        }));
 
-            processedFile = await compressImage(
-              file,
-              compressionSettings.maxWidth,
-              compressionSettings.quality,
-              compressionSettings.maxSizeKB
-            );
+        const compressionSettings = field === "profilePicture"
+          ? { maxWidth: 400, quality: 0.6, maxSizeKB: 220 }
+          : { maxWidth: 800, quality: 0.7, maxSizeKB: 280 };
 
-            compressionApplied = true;
-            compressionStats = {
-              originalSize: file.size,
-              compressedSize: processedFile.size,
-              savings: file.size - processedFile.size,
-              ratio: (
-                ((file.size - processedFile.size) / file.size) *
-                100
-              ).toFixed(1),
-            };
+        processedFile = await compressImage(
+          file,
+          compressionSettings.maxWidth,
+          compressionSettings.quality,
+          compressionSettings.maxSizeKB
+        );
 
-            // Check for cancellation after compression
-            if (controller.signal.aborted) {
-              throw new Error("Upload cancelled by user");
-            }
+        console.log(`Compression completed for ${field}: ${file.size} -> ${processedFile.size}`);
 
-            updateUploadState({ progress: 60, stage: "validating compressed" });
+        finalBase64Data = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = () => reject(new Error("Failed to read compressed file"));
+          reader.readAsDataURL(processedFile);
+        });
 
-            // Verify compressed file meets requirements
-            const compressedCheck = await checkFileSize(processedFile);
-            finalBase64Data = compressedCheck.base64Data;
-
-            if (!compressedCheck.isAcceptableSize) {
-              throw new Error(
-                `File still too large after compression (${compressedCheck.sizeInKB}KB). ` +
-                  `Please use a smaller file or lower resolution image.`
-              );
-            }
-          } catch (compressionError) {
-            if (compressionError.message.includes("cancelled")) {
-              throw compressionError;
-            }
-            console.error(
-              `Compression failed for ${field}:`,
-              compressionError
-            );
-            throw new Error(
-              `Compression failed: ${compressionError.message}. Please try a smaller file.`
-            );
-          }
-        } else if (file.type === "application/pdf") {
-          // For PDFs, we can't compress, so enforce stricter limits
-          if (originalFileCheck.estimatedSize > 380000) {
-            throw new Error(
-              "PDF file is too large even for direct storage. " +
-                "Please compress it to under 280KB or convert to image format."
-            );
-          }
-        }
-      } else {
-        updateUploadState({ progress: 50, stage: "preparing" });
+        compressionApplied = true;
+        compressionStats = {
+          originalSize: file.size,
+          compressedSize: processedFile.size,
+          ratio: (((file.size - processedFile.size) / file.size) * 100).toFixed(1),
+        };
       }
 
-      // Check for cancellation before finalizing
-      if (controller.signal.aborted) {
-        throw new Error("Upload cancelled by user");
+      // Final size check
+      if (finalBase64Data.length > 380000) {
+        throw new Error("File still too large after compression. Please use a smaller file.");
       }
 
-      // Stage 3: Finalization (70-100%)
-      updateUploadState({ progress: 80, stage: "finalizing" });
+      console.log(`Final processing completed for ${field}, creating file data`);
 
-      // Create final file data object
+      // Update progress
+      setUploadStates(prev => ({
+        ...prev,
+        [field]: { ...prev[field], progress: 90, stage: "finalizing" }
+      }));
+
+      // Create file data
       const fileData = {
         name: file.name,
         originalSize: file.size,
@@ -714,87 +589,71 @@ export function UserDetails() {
         uploadedAt: new Date().toISOString(),
         compressed: compressionApplied,
         compressionRatio: compressionApplied ? compressionStats.ratio : 0,
-        operationId: operationId,
       };
 
-      // Atomic form data update
-      setFormData((prevData) => {
-        const newData = { ...prevData, [field]: fileData };
-        return newData;
+      // Update form data
+      setFormData(prev => {
+        console.log(`Updating form data for ${field}`);
+        return { ...prev, [field]: fileData };
       });
 
-      // Mark upload as complete
-      updateUploadState({ progress: 100, stage: "complete" });
+      // Success state
+      setUploadStates(prev => ({
+        ...prev,
+        [field]: {
+          ...prev[field],
+          progress: 100,
+          stage: "complete",
+          isUploading: false,
+        }
+      }));
 
-      // Success logging and feedback
       const successMessage = compressionApplied
-        ? `${
-            field === "medicalReport" ? "Medical report" : "Profile picture"
-          } uploaded and optimized successfully (${
-            fileData.compressionRatio
-          }% size reduction).`
-        : `${
-            field === "medicalReport" ? "Medical report" : "Profile picture"
-          } uploaded successfully.`;
+        ? `${field === "medicalReport" ? "Medical report" : "Profile picture"} uploaded and optimized successfully (${fileData.compressionRatio}% size reduction).`
+        : `${field === "medicalReport" ? "Medical report" : "Profile picture"} uploaded successfully.`;
 
+      console.log(`Upload completed successfully for ${field}`);
       speak(successMessage);
 
-      // Clean up upload state after brief delay
-      setTimeout(() => {
-        updateUploadState({
-          isUploading: false,
-          controller: null,
-          stage: "complete",
-        });
-        cleanupUpload(true); // Success cleanup
-      }, 300);
     } catch (error) {
-      console.error(
-        `Upload failed for ${field} (${operationId}):`,
-        error.message
-      );
+      console.error(`Upload failed for ${field}:`, error.message);
 
-      // Handle cancellation gracefully
-      if (error.message.includes("cancelled")) {
-        updateUploadState({
+      // Error state
+      setUploadStates(prev => ({
+        ...prev,
+        [field]: {
+          ...prev[field],
           isUploading: false,
           progress: 0,
-          controller: null,
-          stage: "cancelled",
-          error: null,
-        });
-        cleanupUpload(false);
-        return;
-      }
-
-      // Reset upload state on error
-      updateUploadState({
-        isUploading: false,
-        progress: 0,
-        controller: null,
-        stage: "error",
-        error: error.message,
-      });
+          stage: "error",
+          error: error.message,
+        }
+      }));
 
       // Clear form data on error
-      setFormData((prevData) => {
-        return { ...prevData, [field]: null };
-      });
+      setFormData(prev => ({ ...prev, [field]: null }));
 
-      // Show error message
-      const errorMessage =
-        error.message || "Failed to process file. Please try again.";
-      setError(`Upload failed: ${errorMessage}`);
-      speak(
-        `Failed to upload ${
-          field === "medicalReport" ? "medical report" : "profile picture"
-        }. ${errorMessage}`
-      );
+      // Show error
+      setError(`Upload failed: ${error.message}`);
+      speak(`Failed to upload ${field === "medicalReport" ? "medical report" : "profile picture"}. ${error.message}`);
 
-      // Cleanup with failure handling
-      cleanupUpload(false);
+      // Reset file input with new key
+      setFileInputKeys(prev => ({ ...prev, [field]: Date.now() }));
+      
+      // Clear file input after a short delay to ensure the key update takes effect
+      setTimeout(() => {
+        const fileInput = document.getElementById(field);
+        if (fileInput) {
+          fileInput.value = "";
+          console.log(`File input cleared for ${field}`);
+        }
+      }, 100);
+    } finally {
+      // Always clear the progress flag
+      console.log(`Clearing progress flag for ${field}`);
+      uploadInProgress.current[field] = false;
     }
-  };
+  }, [uploadStates, speak]);
 
   // Enhanced Upload Progress Component with better stage tracking
   const UploadProgress = ({ field, uploadState, onCancel }) => {
@@ -941,7 +800,7 @@ export function UserDetails() {
     );
   };
 
-  // Enhanced File Upload Card Component
+  // Enhanced File Upload Card Component with debounced file handling
   const FileUploadCard = ({
     field,
     title,
@@ -958,6 +817,36 @@ export function UserDetails() {
     const hasFile = formData[field] && formData[field].data;
     const { isUploading } = uploadState;
 
+    // Debounced file change handler to prevent multiple rapid calls
+    const handleFileChange = React.useCallback(
+      React.useMemo(
+        () => {
+          let timeoutId = null;
+          return (e) => {
+            const file = e.target.files[0];
+            console.log(`File input changed for ${field}:`, file?.name || 'no file');
+            
+            // Clear any existing timeout
+            if (timeoutId) {
+              clearTimeout(timeoutId);
+            }
+            
+            // Debounce the file selection to prevent rapid calls
+            timeoutId = setTimeout(() => {
+              if (file && !uploadInProgress.current[field]) {
+                console.log(`Processing file selection for ${field}: ${file.name}`);
+                onFileSelect(field, file);
+              } else if (uploadInProgress.current[field]) {
+                console.log(`File selection ignored - upload in progress for ${field}`);
+              }
+            }, 200); // 200ms debounce
+          };
+        },
+        [field, onFileSelect]
+      ),
+      [field, onFileSelect]
+    );
+
     return (
       <div className="w-full border-2 border-dashed border-gray-300 rounded p-4 sm:p-6 text-center bg-white hover:border-blue-400 transition-colors duration-300 overflow-hidden">
         {!hasFile && !isUploading && (
@@ -967,8 +856,9 @@ export function UserDetails() {
               id={field}
               key={fileInputKey} // Force re-render on error
               accept={accept}
-              onChange={(e) => onFileSelect(field, e.target.files[0])}
+              onChange={handleFileChange}
               className="hidden"
+              disabled={uploadInProgress.current[field]}
             />
             <label
               htmlFor={field}
@@ -1082,7 +972,7 @@ export function UserDetails() {
         "Request timeout: The submission took too long. Please check your internet connection and try again."
       );
       speak("Form submission timeout. Please try again.");
-    }, 30000); // 30 second timeout
+    }, 40000); // 40 second timeout
 
     try {
       if (!user || !user.id) {
@@ -1135,7 +1025,7 @@ export function UserDetails() {
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
           reject(new Error("Update operation timed out after 25 seconds"));
-        }, 25000); // 25 second timeout for the actual update
+        }, 35000); // 35 second timeout for the actual update
       });
 
       // Wait for either the update to complete or timeout
@@ -1169,7 +1059,7 @@ export function UserDetails() {
       // Small delay to ensure context update propagates
       setTimeout(() => {
         // Navigate to profile page to show updated data
-        navigate("/profile");
+        navigate("/home");
       }, 500);
     } catch (error) {
       // Clear the submission timeout on error

@@ -39,10 +39,7 @@ export const signUpWithEmailPassword = async (email, password, name) => {
       const networkError = new Error("Network connection failed. Please check your internet connection and try again.");
       networkError.code = 'network-request-failed';
       throw networkError;
-    } else if (error.code === 'auth/too-many-requests') {
-      const rateLimitError = new Error("Too many signup attempts. Please wait a moment and try again.");
-      rateLimitError.code = 'too-many-requests';
-      throw rateLimitError;
+
     } else if (error.code === 'auth/email-already-in-use') {
       const emailError = new Error("This email is already registered. Please use a different email or try logging in.");
       emailError.code = 'email-already-in-use';
@@ -89,10 +86,7 @@ export const loginWithEmailPassword = async (email, password) => {
       const emailError = new Error("Invalid email address. Please enter a valid email.");
       emailError.code = 'invalid-email';
       throw emailError;
-    } else if (error.code === 'auth/too-many-requests') {
-      const rateLimitError = new Error("Too many login attempts. Please wait a moment and try again.");
-      rateLimitError.code = 'too-many-requests';
-      throw rateLimitError;
+
     } else if (error.code === 'auth/user-disabled') {
       const disabledError = new Error("This account has been disabled. Please contact support.");
       disabledError.code = 'user-disabled';
@@ -145,10 +139,7 @@ export const loginWithGoogle = async () => {
       const accountError = new Error("An account already exists with this email using a different sign-in method. Please try signing in with email/password.");
       accountError.code = 'account-exists-with-different-credential';
       throw accountError;
-    } else if (error.code === 'auth/too-many-requests') {
-      const rateLimitError = new Error("Too many sign-in attempts. Please wait a moment and try again.");
-      rateLimitError.code = 'too-many-requests';
-      throw rateLimitError;
+
     }
     
     // For any other errors, provide a generic message
