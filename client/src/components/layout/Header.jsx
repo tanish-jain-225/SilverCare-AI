@@ -96,21 +96,21 @@ export function Header() {
               className="text-primary-300 dark:text-primary-100 hover:text-primary-400 dark:hover:text-primary-200 hover:bg-primary-100/10 dark:hover:bg-primary-100/10 transition-all font-medium rounded-lg px-2 md:px-3 lg:px-4 py-1 md:py-1.5 lg:py-2 text-sm md:text-base lg:text-lg"
             >
               <span className="hidden lg:inline">Emergency</span>
-              <span className="lg:hidden">Help</span>
+              <span className="lg:hidden">Emergency</span>
             </Link>
             <Link
               to="/reminders"
               className="text-primary-300 dark:text-primary-100 hover:text-primary-400 dark:hover:text-primary-200 hover:bg-primary-100/10 dark:hover:bg-primary-100/10 transition-all font-medium rounded-lg px-2 md:px-3 lg:px-4 py-1 md:py-1.5 lg:py-2 text-sm md:text-base lg:text-lg"
             >
               <span className="hidden lg:inline">Reminders</span>
-              <span className="lg:hidden">Tasks</span>
+              <span className="lg:hidden">Reminders</span>
             </Link>
             <Link
               to="/ask-queries"
               className="text-primary-300 dark:text-primary-100 hover:text-primary-400 dark:hover:text-primary-200 hover:bg-primary-100/10 dark:hover:bg-primary-100/10 transition-all font-medium rounded-lg px-2 md:px-3 lg:px-4 py-1 md:py-1.5 lg:py-2 text-sm md:text-base lg:text-lg"
             >
               <span className="hidden lg:inline">Ask</span>
-              <span className="lg:hidden">AI</span>
+              <span className="lg:hidden">Ask</span>
             </Link>
             <Link
               to="/blog"
@@ -218,7 +218,7 @@ export function Header() {
                 className="block text-primary-300 dark:text-primary-100 hover:text-primary-400 dark:hover:text-primary-200 hover:bg-primary-100/10 dark:hover:bg-primary-100/10 transition-all font-medium px-2 xs:px-3 py-2 xs:py-2.5 rounded-lg text-sm xs:text-base"
                 onClick={handleMenuLinkClick}
               >
-                Ask Queries
+                Ask
               </Link>
             </li>
             <li>
