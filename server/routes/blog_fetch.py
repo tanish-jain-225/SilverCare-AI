@@ -1,15 +1,13 @@
-import os
-import requests
 from flask import Blueprint, request, jsonify
 from flask_cors import cross_origin
+
+import os
+import requests
 
 blog_fetch_bp = Blueprint('blog_fetch', __name__)
 
 # Get API keys from environment variables
 API_KEY = os.getenv('VITE_WORLD_NEWS_API_KEY1') or os.getenv('VITE_WORLD_NEWS_API_KEY2') or os.getenv('VITE_WORLD_NEWS_API_KEY3')
-
-if not API_KEY:
-    print("Warning: World News API key is not defined. Please set VITE_WORLD_NEWS_API_KEY1, VITE_WORLD_NEWS_API_KEY2, or VITE_WORLD_NEWS_API_KEY3 in your environment variables.")
 
 @blog_fetch_bp.route('/fetch-news', methods=['GET', 'POST', 'OPTIONS'])
 @cross_origin()

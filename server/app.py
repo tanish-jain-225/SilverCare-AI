@@ -1,12 +1,12 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
+from dotenv import load_dotenv
 from routes.format_reminder import format_reminder_bp
 from routes.ask_query import chat_bp
 from routes.saved_contacts import saved_contacts_bp
 from routes.blog_fetch import blog_fetch_bp
+
 import traceback
-import os
-from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()

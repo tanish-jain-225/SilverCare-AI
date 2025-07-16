@@ -183,7 +183,7 @@ export function Home() {
       </section>
 
       {/* Content */}
-      <div className="w-[90%] px-3 mb-20 sm:px-6 lg:px-8 py-8 mx-auto">
+      <div className="w-[90%] px-3 mb-20 sm:px-6 lg:px-8 py-14 mx-auto">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
           {features.map((feature) => (
             <motion.div

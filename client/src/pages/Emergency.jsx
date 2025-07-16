@@ -34,7 +34,18 @@ export default function Emergency() {
     error: locationError,
     accuracy,
     locationDetails,
+    refreshLocation,
   } = useLocation();
+
+  // All useState hooks first
+  const [messages, setMessages] = useState({});
+  const [isListening, setIsListening] = useState({});
+  const [recognition, setRecognition] = useState(null);
+  const [emergencyContacts, setEmergencyContacts] = useState([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [showAddContactForm, setShowAddContactForm] = useState(false);
+  const [newContactName, setNewContactName] = useState("");
+  const [newContactPhone, setNewContactPhone] = useState("");
 
   // Helper function to format accuracy information
   const getAccuracyStatus = (accuracyMeters) => {
@@ -72,15 +83,22 @@ export default function Emergency() {
     return formatTimestamp(timestamp);
   };
 
-  // State for emergency chat
-  const [messages, setMessages] = useState({});
-  const [isListening, setIsListening] = useState({});
-  const [recognition, setRecognition] = useState(null);
+  // Initialize speech recognition
+  useEffect(() => {
+    if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
+      const SpeechRecognition =
+        window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognitionInstance = new SpeechRecognition();
 
-  // State for emergency contacts
-  const [emergencyContacts, setEmergencyContacts] = useState([]);
-  const [loadingContacts, setLoadingContacts] = useState(false);
+      recognitionInstance.continuous = false;
+      recognitionInstance.interimResults = false;
+      recognitionInstance.lang = "en-US";
 
+      setRecognition(recognitionInstance);
+    }
+  }, []);
+
+  // Fetch contacts effect
   useEffect(() => {
     async function fetchContacts() {
       setLoadingContacts(true);
@@ -107,9 +125,31 @@ export default function Emergency() {
     fetchContacts();
   }, [user]);
 
-  const [showAddContactForm, setShowAddContactForm] = useState(false);
-  const [newContactName, setNewContactName] = useState("");
-  const [newContactPhone, setNewContactPhone] = useState("");
+  // Re-initialize contacts when user changes
+  useEffect(() => {
+    if (user && user.emergencyContacts && user.emergencyContacts.length > 0) {
+      // Only use default contacts from user.emergencyContacts and saved contacts from API
+      const defaultContacts = user.emergencyContacts.map((contact, index) => ({
+        id: `default-${index}`,
+        name: contact.name,
+        phone: contact.number,
+        relationship: "Emergency Contact",
+        isDefault: true,
+      }));
+      setEmergencyContacts((prev) => {
+        // If already set by fetchContacts, don't duplicate
+        const nonDefault = prev.filter((c) => !c.isDefault);
+        return [...defaultContacts, ...nonDefault];
+      });
+    }
+  }, [user]);
+
+  // Voice announcement effect
+  useEffect(() => {
+    speak(
+      "Emergency chat is ready. Use the microphone to record messages or type manually, then send via WhatsApp."
+    );
+  }, [speak]);
 
   const emergencyHelp = async () => {
     // confirm the action
@@ -181,21 +221,6 @@ export default function Emergency() {
     }
   };
 
-  // Initialize speech recognition
-  useEffect(() => {
-    if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
-      const SpeechRecognition =
-        window.SpeechRecognition || window.webkitSpeechRecognition;
-      const recognitionInstance = new SpeechRecognition();
-
-      recognitionInstance.continuous = false;
-      recognitionInstance.interimResults = false;
-      recognitionInstance.lang = "en-US";
-
-      setRecognition(recognitionInstance);
-    }
-  }, []);
-
   // Handle speech-to-text
   const handleSpeechToText = (contactId) => {
     if (!recognition) {
@@ -258,29 +283,6 @@ export default function Emergency() {
       [contact.id]: "",
     }));
   };
-  // Re-initialize contacts when user changes
-  useEffect(() => {
-    if (user && user.emergencyContacts && user.emergencyContacts.length > 0) {
-      // Only use default contacts from user.emergencyContacts and saved contacts from API
-      const defaultContacts = user.emergencyContacts.map((contact, index) => ({
-        id: `default-${index}`,
-        name: contact.name,
-        phone: contact.number,
-        relationship: "Emergency Contact",
-        isDefault: true,
-      }));
-      setEmergencyContacts((prev) => {
-        // If already set by fetchContacts, don't duplicate
-        const nonDefault = prev.filter((c) => !c.isDefault);
-        return [...defaultContacts, ...nonDefault];
-      });
-    }
-  }, [user]);
-  React.useEffect(() => {
-    speak(
-      "Emergency chat is ready. Use the microphone to record messages or type manually, then send via WhatsApp."
-    );
-  }, [speak]);
 
   const defaultContacts = emergencyContacts.filter((c) => c.isDefault);
   const savedContacts = emergencyContacts.filter((c) => !c.isDefault);
@@ -353,7 +355,8 @@ export default function Emergency() {
                   <button
                     className="text-md font-bold text-white  transition-colors duration-200 bg-blue-600 hover:bg-blue-700 py-2 px-4 rounded-lg"
                     onClick={() => {
-                      window.location.reload();
+                      refreshLocation();
+                      speak("Refreshing location...");
                     }}
                   >
                     Refresh

@@ -452,44 +452,44 @@ export function Reminders() {
             </p>
           </div>
         ) : (
-          <div className="grid gap-3 sm:gap-2">
+          <div className="grid gap-3 sm:gap-4 py-10">
             {uniqueReminders.map((reminder) => (
               <Card
                 key={reminder.created_at}
-                className="flex justify-between items-center p-2 gap-4 hover:shadow-md transition-all duration-200 bg-white/90 dark:bg-dark-50/90 border border-primary-100/20 dark:border-dark-600/20 backdrop-blur-sm hover:scale-[1.01] hover:border-primary-200/30 dark:hover:border-primary-100/30"
+                className="flex justify-between items-center p-4 sm:p-5 md:p-6 gap-4 hover:shadow-lg transition-all duration-300 bg-white dark:bg-dark-50 border border-primary-100/20 dark:border-dark-600/20 hover:scale-[1.02] hover:border-primary-200/40 dark:hover:border-primary-100/40 rounded-xl sm:rounded-2xl"
               >
-                <div className="flex gap-2 md:gap-4 justify-center items-center">
-                  <div className="bg-gradient-to-br from-primary-100/20 to-accent-yellow/20 dark:from-primary-100/10 dark:to-accent-yellow/10 rounded-full p-2 flex-shrink-0 mt-0.5 sm:mt-0">
+                <div className="flex gap-3 sm:gap-4 md:gap-5 justify-center items-center flex-1">
+                  <div className="bg-gradient-to-br from-primary-100/30 to-accent-yellow/30 dark:from-primary-100/20 dark:to-accent-yellow/20 rounded-full p-3 sm:p-4 flex-shrink-0 border border-primary-100/30 dark:border-primary-100/20">
                     <Clock
-                      className="text-primary-200 dark:text-primary-100 w-5 h-5"
+                      className="text-primary-300 dark:text-primary-100 w-5 h-5 sm:w-6 sm:h-6"
                       aria-hidden="true"
                     />
                   </div>
-                  <div className="flex flex-col gap-2">
-                    <h3 className="font-semibold text-base sm:text-lg md:text-xl text-primary-300 dark:text-primary-100 break-words leading-tight">
+                  <div className="flex flex-col gap-1 sm:gap-2 flex-1 min-w-0">
+                    <h3 className="font-semibold text-lg sm:text-xl md:text-2xl text-primary-300 dark:text-primary-100 break-words leading-tight truncate">
                       {reminder.title}
                     </h3>
-                    <p className="text-sm text-primary-200 dark:text-primary-100/80 flex items-center gap-1 flex-wrap">
-                      <span className="inline-block">
+                    <p className="text-sm sm:text-base text-primary-200/80 dark:text-primary-100/70 flex items-center gap-2 flex-wrap">
+                      <span className="inline-block font-medium">
                         {formatDate(reminder.date, { weekday: "short", month: "short", day: "numeric" })}
                       </span>
-                      <span className="text-primary-100 dark:text-primary-100/40">
+                      <span className="text-primary-100/60 dark:text-primary-100/40">
                         |
                       </span>
-                      <span className="inline-block">{formatTimeForDisplay(reminder.time)}</span>
+                      <span className="inline-block font-medium">{formatTimeForDisplay(reminder.time)}</span>
                     </p>
                   </div>
                 </div>
 
-                <div className="flex gap-2 sm:w-auto items-center">
+                <div className="flex gap-2 sm:gap-3 items-center flex-shrink-0">
                   <Button
                     onClick={() => handleReadReminder(reminder)}
                     variant="outline"
                     size="sm"
                     ariaLabel="Read reminder"
-                    className="flex justify-center items-center hover:bg-primary-100 dark:hover:bg-primary-100 md:w-20 w-10"
+                    className="flex justify-center items-center hover:bg-primary-100/20 dark:hover:bg-primary-100 border-primary-200/30 dark:border-primary-100/30 w-10 h-10 sm:w-12 sm:h-12 rounded-xl transition-all duration-300"
                   >
-                    <Volume2 className="w-4 h-4" />
+                    <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" />
                   </Button>
                   
                   <Button
@@ -497,9 +497,9 @@ export function Reminders() {
                     variant="danger"
                     size="sm"
                     ariaLabel="Delete reminder"
-                    className="flex justify-center items-center dark:bg-red-600 md:w-20 w-10"
+                    className="flex justify-center items-center bg-red-500 dark:bg-red-600 hover:bg-red-600 dark:hover:bg-red-700 border-red-500/30 dark:border-red-600/30 w-10 h-10 sm:w-12 sm:h-12 rounded-xl transition-all duration-300"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                   </Button>
                 </div>
               </Card>

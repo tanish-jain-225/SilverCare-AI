@@ -1,32 +1,17 @@
-from flask import Blueprint, request, jsonify, Response
-try:
-    from together import Together
-except ImportError:
-    # Fallback if together import fails
-    class Together:
-        def __init__(self, api_key):
-            self.api_key = api_key
-        def chat(self):
-            return self
-        def completions(self):
-            return self
-        def create(self, **kwargs):
-            # Mock response
-            class MockResponse:
-                choices = [type('obj', (object,), {'message': type('obj', (object,), {'content': '{"error": "Together API not available"}'})()})]
-            return MockResponse()
-import requests
-import re
-import json as pyjson
-import json
+from flask import Blueprint, request, jsonify
+from together import Together
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 from bson import ObjectId
 from datetime import datetime, timedelta
-import calendar
 from dateutil.parser import parse as parse_datetime
-import os
 from dotenv import load_dotenv
+
+import json as pyjson
+
+import re
+import json
+import os
 
 # Load environment variables
 load_dotenv()

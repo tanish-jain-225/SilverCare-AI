@@ -60,6 +60,8 @@ const LoadingScreen = ({ message = "Loading your healthcare assistant..." }) => 
                             src="/voice-search.png" 
                             alt="SilverCare AI Logo" 
                             className="w-full h-full object-contain animate-pulse"
+                            loading="eager"
+                            decoding="sync"
                         />
                     </div>
                 </div>
