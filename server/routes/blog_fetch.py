@@ -90,13 +90,3 @@ def fetch_news():
     
     except Exception as e:
         return jsonify({'error': f'Internal server error: {str(e)}'}), 500
-
-@blog_fetch_bp.route('/health', methods=['GET'])
-@cross_origin()
-def health_check():
-    """Health check endpoint for the blog fetch service."""
-    return jsonify({
-        'status': 'healthy',
-        'service': 'blog_fetch',
-        'api_key_configured': bool(API_KEY)
-    }), 200
