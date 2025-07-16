@@ -1,16 +1,26 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Send, Pause, User } from "lucide-react";
+import { Send, Pause, User, History, Plus, X, Trash2, MessageCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { VoiceButton } from "../components/voice/VoiceButton";
 import { MessageBubble } from "../components/chat/MessageBubble";
 import { LoadingIndicator } from "../components/chat/LoadingIndicator";
 import { useApp } from "../context/AppContext";
 import { route_endpoint } from "../utils/helper.js";
 import TrueFocus from "../components/ask-queries/TrueFocus";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useVoice } from "../hooks/useVoice";
 import { useLocation } from "../hooks/useLocation";
 import { BottomNavigation } from "../components/layout/BottomNavigation";
-import { LucidePanelLeftOpen, History } from "lucide-react";
+import {
+  loadChatSessions,
+  saveChatSessions,
+  createChatSession,
+  updateSessionMessages,
+  deleteChatSession as deleteChatSessionFromStorage,
+  updateSessionActivity,
+  clearChatStorage,
+  formatRelativeTime,
+  getMostRecentSession
+} from "../utils/chatStorageService";
 
 export function AskQueries() {
   const { user } = useApp();
@@ -23,53 +33,411 @@ export function AskQueries() {
   const [error, setError] = useState(null);
   const { speak, listen, stop, isSpeaking } = useVoice();
   const [inputDisabled, setInputDisabled] = useState(true); // Start disabled on initial load
-  const [showStartOverlay, setShowStartOverlay] = useState(true); // Show start overlay initially
   const [isInitialWelcomePlaying, setIsInitialWelcomePlaying] = useState(false); // Track initial welcome
+  const [isTransitioning, setIsTransitioning] = useState(false); // Track session transitions
+  const [lastUserActivity, setLastUserActivity] = useState(Date.now()); // Track user activity
 
-  // This useEffect was removed to prevent duplicate welcome messages
-  // Welcome message is now handled only in handleStartChat function
+  // Chat History States
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [chatSessions, setChatSessions] = useState([]);
+  const [currentSessionId, setCurrentSessionId] = useState(null);
+  const [sessionCounter, setSessionCounter] = useState(1);
 
-  // Speak page welcome message when component loads
+  // ================== CHAT HISTORY MANAGEMENT ==================
+  // These functions use the storage service abstraction for easy database migration
+
+  /**
+   * Initialize chat history from storage
+   */
+  const initializeChatHistory = async () => {
+    try {
+      const result = await loadChatSessions(user?.id);
+      
+      if (result.success) {
+        setChatSessions(result.sessions);
+        setSessionCounter(result.sessionCounter);
+        
+        if (result.sessions.length > 0 && result.currentSessionId) {
+          const currentSession = result.sessions.find(s => s.id === result.currentSessionId);
+          if (currentSession) {
+            setCurrentSessionId(result.currentSessionId);
+            setMessages(currentSession.messages || []);
+            // Enable inputs if there are messages in the session
+            if (currentSession.messages.length > 0) {
+              setInputDisabled(false);
+            }
+          } else {
+            // Invalid current session, switch to first valid session
+            setCurrentSessionId(result.sessions[0].id);
+            setMessages(result.sessions[0].messages || []);
+            if (result.sessions[0].messages.length > 0) {
+              setInputDisabled(false);
+            }
+          }
+        }
+      } else {
+        console.error('Failed to load chat sessions:', result.error);
+        setChatSessions([]);
+        setCurrentSessionId(null);
+        setSessionCounter(1);
+      }
+    } catch (error) {
+      console.error('Error initializing chat history:', error);
+      setChatSessions([]);
+      setCurrentSessionId(null);
+      setSessionCounter(1);
+    }
+  };
+
+  /**
+   * Save current chat state to storage
+   */
+  const saveCurrentChatState = async () => {
+    try {
+      await saveChatSessions(chatSessions, currentSessionId, sessionCounter, user?.id);
+    } catch (error) {
+      console.error('Error saving chat state:', error);
+    }
+  };
+
+  /**
+   * Create a new chat session
+   * @param {string} sessionName - Name for the new session
+   * @returns {Object} - New session object
+   */
+  const createNewChatSession = async (sessionName) => {
+    try {
+      const result = await createChatSession(sessionName, user?.id);
+      
+      if (result.success) {
+        setChatSessions(prev => [result.session, ...prev]);
+        setCurrentSessionId(result.session.id);
+        setSessionCounter(prev => prev + 1);
+        return result.session;
+      } else {
+        throw new Error(result.error || 'Failed to create session');
+      }
+    } catch (error) {
+      console.error('Error creating new chat session:', error);
+      throw error;
+    }
+  };
+
+  /**
+   * Delete a chat session from storage
+   * @param {string} sessionId - ID of session to delete
+   * @returns {Object|null} - Most recent remaining session or null
+   */
+  const deleteChatSessionLocal = async (sessionId) => {
+    try {
+      const result = await deleteChatSessionFromStorage(sessionId, user?.id);
+      
+      if (result.success) {
+        setChatSessions(result.remainingSessions);
+        return getMostRecentSession(result.remainingSessions);
+      } else {
+        throw new Error(result.error || 'Failed to delete session');
+      }
+    } catch (error) {
+      console.error('Error deleting chat session:', error);
+      throw error;
+    }
+  };
+
+  /**
+   * Get a specific session by ID
+   * @param {string} sessionId - Session ID to retrieve
+   * @returns {Object|null} - Session object or null
+   */
+  const getChatSession = (sessionId) => {
+    return chatSessions.find(s => s.id === sessionId) || null;
+  };
+
+  /**
+   * Update session's last activity timestamp
+   * @param {string} sessionId - Session ID to update
+   */
+  const updateSessionActivityLocal = async (sessionId) => {
+    try {
+      const success = await updateSessionActivity(sessionId, user?.id);
+      
+      if (success) {
+        setChatSessions(prev => prev.map(s => 
+          s.id === sessionId 
+            ? { ...s, lastActivity: new Date().toISOString() }
+            : s
+        ));
+      }
+    } catch (error) {
+      console.error('Error updating session activity:', error);
+    }
+  };
+
+  /**
+   * Update session messages in storage
+   * @param {string} sessionId - Session ID to update
+   * @param {Array} messages - Updated messages array
+   */
+  const updateSessionMessagesLocal = async (sessionId, messages) => {
+    if (!sessionId || !messages.length) return;
+
+    try {
+      const success = await updateSessionMessages(sessionId, messages, user?.id);
+      
+      if (success) {
+        setChatSessions(prev => prev.map(session => 
+          session.id === sessionId 
+            ? { 
+                ...session, 
+                messages, 
+                lastActivity: new Date().toISOString(),
+                messageCount: messages.length
+              }
+            : session
+        ));
+      }
+    } catch (error) {
+      console.error('Error updating session messages:', error);
+    }
+  };
+
+  // ================== END CHAT HISTORY MANAGEMENT ==================
+
+  // Load chat sessions from storage on component mount
   useEffect(() => {
-    if (user?.id && showStartOverlay && !isInitialWelcomePlaying) {
+    // Stop any ongoing speech on component mount/refresh
+    stop();
+    
+    if (user?.id) {
+      initializeChatHistory();
+    }
+  }, [user?.id, stop]);
+
+  // Auto-save sessions whenever they change
+  useEffect(() => {
+    if (chatSessions.length > 0 || currentSessionId || sessionCounter > 1) {
+      saveCurrentChatState();
+    }
+  }, [chatSessions, currentSessionId, sessionCounter]);
+
+  // Update current session messages whenever messages change
+  useEffect(() => {
+    if (currentSessionId && messages.length > 0) {
+      updateSessionMessagesLocal(currentSessionId, messages);
+    }
+  }, [messages, currentSessionId]);
+
+  // Track user activity for auto-save and session management
+  useEffect(() => {
+    const updateActivity = () => setLastUserActivity(Date.now());
+    
+    // Listen for user interactions
+    const events = ['click', 'keypress', 'mousemove', 'touchstart'];
+    events.forEach(event => {
+      document.addEventListener(event, updateActivity, { passive: true });
+    });
+
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, updateActivity);
+      });
+    };
+  }, []);
+
+  // Speak page welcome message only when component first loads (not on session switches)
+  useEffect(() => {
+    if (user?.id && !isInitialWelcomePlaying && messages.length === 0 && !currentSessionId && chatSessions.length === 0) {
       setIsInitialWelcomePlaying(true);
-      // Speak welcome message when page loads
-      speak("Welcome to AI Assistance section. Click start conversation to begin.", {
+      // Speak welcome message only when page loads with no existing session and no saved sessions
+      speak("Welcome to AI Assistant", {
         onended: () => {
           setIsInitialWelcomePlaying(false);
           // Keep inputs disabled until user starts conversation
         },
+        onerror: () => {
+          console.warn('Speech synthesis failed for initial welcome message');
+          setIsInitialWelcomePlaying(false);
+        }
       });
     }
-  }, [user, showStartOverlay]);
+  }, [user, messages.length, currentSessionId, chatSessions.length]);
+
+  // Chat Session Management Functions
+  const createNewSession = async () => {
+    if (isTransitioning) return; // Prevent multiple rapid session creations
+    
+    setIsTransitioning(true);
+    
+    try {
+      // Stop any ongoing speech and prevent welcome message
+      stop();
+      setIsInitialWelcomePlaying(false);
+      setError(null); // Clear any previous errors
+      
+      // Create new session using abstracted function
+      const newSession = await createNewChatSession(`Chat ${sessionCounter}`);
+      
+      setMessages([]);
+      setIsHistoryOpen(false);
+      
+      // Start the new session immediately with welcome message
+      if (user?.id) {
+        // Get user's name from signin info (fullName, firstName, or email)
+        const userName = user?.name || user.firstName || user.displayName || user.email?.split('@')[0] || 'there';
+        const welcomeMessageText = `Welcome ${userName}, How can I assist you today?`;
+        const welcomeMessage = {
+          id: `welcome_${Date.now()}`,
+          message: welcomeMessageText,
+          isUser: false,
+          timestamp: new Date(),
+        };
+        
+        // Small delay to ensure UI updates before message appears
+        setTimeout(() => {
+          setMessages([welcomeMessage]);
+          setInputDisabled(false);
+          
+          // Start speaking the welcome message
+          speak(welcomeMessageText, {
+            onended: () => {
+              setInputDisabled(false);
+            },
+            onerror: () => {
+              console.warn('Speech synthesis failed for welcome message');
+              setInputDisabled(false);
+            }
+          });
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Error creating new session:', error);
+      setError('Failed to create new session. Please try again.');
+    } finally {
+      setTimeout(() => setIsTransitioning(false), 300);
+    }
+  };
+
+  const deleteSession = async (sessionId) => {
+    if (!sessionId || isTransitioning) return;
+    
+    setIsTransitioning(true);
+    
+    try {
+      // Stop any ongoing speech
+      stop();
+      
+      // Delete session using abstracted function
+      const mostRecentSession = await deleteChatSessionLocal(sessionId);
+      
+      if (currentSessionId === sessionId) {
+        if (mostRecentSession) {
+          // Switch to the most recently active session
+          await switchToSession(mostRecentSession.id);
+        } else {
+          // No sessions left, reset to start chat state
+          setCurrentSessionId(null);
+          setMessages([]);
+          setInputDisabled(true);
+          setError(null);
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting session:', error);
+      setError('Failed to delete session. Please try again.');
+    } finally {
+      setTimeout(() => setIsTransitioning(false), 300);
+    }
+  };
+
+  const switchToSession = async (sessionId) => {
+    if (!sessionId || isTransitioning || sessionId === currentSessionId) return;
+    
+    setIsTransitioning(true);
+    
+    try {
+      // Get session using abstracted function
+      const session = getChatSession(sessionId);
+      
+      if (session) {
+        // Stop any ongoing speech when switching sessions
+        stop();
+        setIsInitialWelcomePlaying(false);
+        setError(null); // Clear any previous errors
+        
+        setCurrentSessionId(sessionId);
+        setMessages(session.messages || []);
+        
+        // Enable inputs if the session has messages, disable if it's a new session
+        setInputDisabled(session.messages.length === 0);
+        setIsHistoryOpen(false);
+        
+        // Update last activity for this session
+        await updateSessionActivityLocal(sessionId);
+      } else {
+        console.warn(`Session ${sessionId} not found`);
+        setError('Session not found. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error switching session:', error);
+      setError('Failed to switch session. Please try again.');
+    } finally {
+      setTimeout(() => setIsTransitioning(false), 300);
+    }
+  };
+
+  const toggleHistory = () => {
+    setIsHistoryOpen(prev => !prev);
+  };
+
+  // Remove the formatRelativeTime function since it's now imported from the service
 
   // Handle start button click
-  const handleStartChat = () => {
-    // Always stop any ongoing speech first
-    stop();
-    setIsInitialWelcomePlaying(false);
-    setShowStartOverlay(false);
+  const handleStartChat = async () => {
+    if (isTransitioning) return;
     
-    if (user?.id) {
-      // Get user's name from signin info (fullName, firstName, or email)
-      const userName = user?.name || user.firstName || user.displayName || user.email?.split('@')[0] || 'there';
-      const welcomeMessage = {
-        id: "welcome",
-        message: `Welcome ${userName}, How can I assist you today?`,
-        isUser: false,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, welcomeMessage]);
-      setInputDisabled(true); // Disable input and voice button while speaking welcome
+    setIsTransitioning(true);
+    
+    try {
+      // Always stop any ongoing speech first (including welcome speech)
+      stop();
+      setIsInitialWelcomePlaying(false);
+      setError(null); // Clear any previous errors
       
-      // Small delay to ensure stop() has taken effect before starting new speech
-      setTimeout(() => {
-        speak(welcomeMessage.message, {
+      // Create a new session if none exists
+      if (!currentSessionId) {
+        await createNewChatSession(`Chat ${sessionCounter}`);
+      }
+      
+      if (user?.id) {
+        // Get user's name from signin info (fullName, firstName, or email)
+        const userName = user?.name || user.firstName || user.displayName || user.email?.split('@')[0] || 'there';
+        const welcomeMessageText = `Welcome ${userName}, How can I assist you today?`;
+        const welcomeMessage = {
+          id: `welcome_${Date.now()}`,
+          message: welcomeMessageText,
+          isUser: false,
+          timestamp: new Date(),
+        };
+        
+        setMessages((prev) => [...prev, welcomeMessage]);
+        setInputDisabled(false);
+        
+        // Start speaking the welcome message with error handling
+        speak(welcomeMessageText, {
           onended: () => {
-            setInputDisabled(false); // Enable input after welcome speech ends or if stopped
+            setInputDisabled(false);
           },
+          onerror: () => {
+            console.warn('Speech synthesis failed for welcome message');
+            setInputDisabled(false);
+          }
         });
-      }, 100);
+      }
+    } catch (error) {
+      console.error('Error starting chat:', error);
+      setError('Failed to start chat. Please try again.');
+    } finally {
+      setTimeout(() => setIsTransitioning(false), 300);
     }
   };
 
@@ -132,6 +500,10 @@ export function AskQueries() {
             onended: () => {
               setInputDisabled(false); // Re-enable inputs after speech ends
             },
+            onerror: () => {
+              console.warn('Speech synthesis failed for emergency message');
+              setInputDisabled(false);
+            }
           }
         );
 
@@ -156,6 +528,10 @@ export function AskQueries() {
             onended: () => {
               setInputDisabled(false); // Re-enable inputs after speech ends
             },
+            onerror: () => {
+              console.warn('Speech synthesis failed for emergency error message');
+              setInputDisabled(false);
+            }
           }
         );
         
@@ -186,6 +562,10 @@ export function AskQueries() {
           onended: () => {
             setInputDisabled(false); // Re-enable inputs after speech ends
           },
+          onerror: () => {
+            console.warn('Speech synthesis failed for no contacts emergency message');
+            setInputDisabled(false);
+          }
         }
       );
       return true;
@@ -196,31 +576,44 @@ export function AskQueries() {
 
   // Send a message
   const handleSendMessage = async (message) => {
-    const messageToSend = message || inputMessage;
-    if (!messageToSend.trim() || !user?.id) return;
+    const messageToSend = message || inputMessage.trim();
+    if (!messageToSend || !user?.id || isLoading || isTransitioning) return;
+    
     setError(null);
+    setLastUserActivity(Date.now());
 
     const userMessage = {
-      id: Date.now().toString(),
+      id: `user_${Date.now()}`,
       message: messageToSend,
       isUser: true,
       timestamp: new Date(),
     };
+    
     setMessages((prev) => [...prev, userMessage]);
     setInputMessage("");
     setIsLoading(true);
 
     try {
-      let response, data;
-      response = await fetch(`${route_endpoint}/chat/message`, {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      const response = await fetch(`${route_endpoint}/chat/message`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           input: messageToSend,
           userId: user.id,
         }),
+        signal: controller.signal
       });
-      data = await response.json();
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
 
       // Check for emergency detection from server
       const emergencyHandled = data.emergency_detected 
@@ -251,7 +644,6 @@ export function AskQueries() {
         setMessages((prev) => [...prev, reminderNotification]);
       } else if (data.reminder_detected && !data.reminder_result?.success) {
         // Reminder was detected but failed to process
-        
         const reminderFailNotification = {
           id: `reminder-fail-${Date.now()}`,
           message: `Reminder Processing Failed\n\nI detected you wanted to set a reminder, but couldn't process it automatically. Please try the Reminders section or be more specific with your request.`,
@@ -262,8 +654,7 @@ export function AskQueries() {
         setMessages((prev) => [...prev, reminderFailNotification]);
       }
 
-      let aiResponseMessage =
-        data.message || "Sorry, I could not understand that.";
+      let aiResponseMessage = data.message || "I apologize, but I couldn't process your request. Please try again.";
 
       // If emergency was detected, modify AI response to acknowledge it
       if (emergencyHandled) {
@@ -271,15 +662,13 @@ export function AskQueries() {
       }
 
       const aiMessage = {
-        id: (Date.now() + 1).toString(),
+        id: `ai_${Date.now()}`,
         message: aiResponseMessage,
         isUser: false,
         timestamp: new Date(),
       };
-      setMessages((prev) => {
-        const updated = [...prev, aiMessage];
-        return updated;
-      });
+      
+      setMessages((prev) => [...prev, aiMessage]);
 
       // Only speak the AI response if no emergency was handled (emergency has its own speech)
       if (!emergencyHandled) {
@@ -289,10 +678,13 @@ export function AskQueries() {
           onended: () => {
             setInputDisabled(false); // Re-enable inputs after speech ends
           },
+          onerror: () => {
+            console.warn('Speech synthesis failed for AI response');
+            setInputDisabled(false);
+          }
         });
       } else {
         // If emergency was handled, inputs are already managed by emergency handler
-        // Just ensure they're re-enabled after any ongoing speech
         setTimeout(() => {
           if (!isSpeaking) {
             setInputDisabled(false);
@@ -300,28 +692,69 @@ export function AskQueries() {
         }, 100);
       }
     } catch (error) {
-      setError("Unable to connect to the server. Please try again.");
-      const errorMessage = {
-        id: (Date.now() + 2).toString(),
-        message:
-          error.message || "Unable to connect to the server. Please try again.",
+      console.error('Error sending message:', error);
+      
+      let errorMessage = "Unable to connect to the server. Please check your internet connection and try again.";
+      
+      if (error.name === 'AbortError') {
+        errorMessage = "Request timed out. Please try again.";
+      } else if (error.message.includes('Server error: 5')) {
+        errorMessage = "Server is temporarily unavailable. Please try again in a moment.";
+      } else if (error.message.includes('Failed to fetch')) {
+        errorMessage = "Network error. Please check your internet connection.";
+      }
+      
+      setError(errorMessage);
+      
+      const errorMessageObj = {
+        id: `error_${Date.now()}`,
+        message: errorMessage,
         isUser: false,
         timestamp: new Date(),
         isError: true,
       };
-      setMessages((prev) => [...prev, errorMessage]);
+      setMessages((prev) => [...prev, errorMessageObj]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleVoiceInput = (text) => {
+    if (!text || !text.trim()) return;
+    
+    setLastUserActivity(Date.now());
+    
     // Set the input message to the recognized text
     if (isSpeaking) {
       stop();
     }
-    setInputMessage(text);
+    
+    setInputMessage(text.trim());
+    
+    // Auto-focus the input field after voice input
+    setTimeout(() => {
+      const inputElement = document.querySelector('input[type="text"]');
+      if (inputElement) {
+        inputElement.focus();
+      }
+    }, 100);
   };
+
+  // Enhanced error clearing function
+  const clearError = () => {
+    setError(null);
+  };
+
+  // Auto-clear errors after 10 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null);
+      }, 10000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   useEffect(() => {
     if (endOfMessagesRef.current) {
@@ -332,13 +765,22 @@ export function AskQueries() {
   return (
     <div>
       {/* Main chat UI */}
-      <div className="p-4 pb-40 w-full max-w-7xl mx-auto">
+      <div className={`p-4 pb-40 w-full max-w-7xl mx-auto ${isHistoryOpen ? 'pointer-events-none' : ''}`}>
         <motion.div
           layout
           transition={{ layout: { duration: 0.3, ease: "easeInOut" } }}
-          className="relative flex flex-col w-full max-w-4xl bg-white/95 dark:bg-dark-200/90 rounded-2xl shadow-lg border border-primary-100/30 dark:border-primary-200/40 overflow-hidden h-[80vh] mx-auto"
+          className={`relative flex flex-col w-full max-w-4xl bg-white/95 dark:bg-dark-200/90 rounded-2xl shadow-lg border border-primary-100/30 dark:border-primary-200/40 overflow-hidden h-[80vh] mx-auto ${isHistoryOpen ? 'opacity-50' : ''}`}
         >
-          <div className="flex items-center justify-center gap-2 p-2">
+          <div className="flex items-center justify-between gap-2 p-2">
+            <button
+              onClick={toggleHistory}
+              className="flex items-center justify-center p-2 rounded-lg bg-primary-100/20 hover:bg-primary-100/30 dark:bg-primary-200/20 dark:hover:bg-primary-200/30 transition-colors duration-200 group"
+              title="Chat History"
+              disabled={isHistoryOpen}
+            >
+              <History className="w-5 h-5 text-primary-200 dark:text-primary-100 group-hover:scale-110 transition-transform duration-200" />
+            </button>
+            
             <motion.div
               layout
               transition={{ layout: { duration: 0.3, ease: "easeInOut" } }}
@@ -381,7 +823,7 @@ export function AskQueries() {
 
           <div className="relative flex-1 overflow-y-auto p-4 space-y-2 sm:space-y-4 custom-scrollbar">
             {/* Start Overlay - positioned only over the messages area */}
-            {showStartOverlay && (
+            {(messages.length === 0 && chatSessions.length === 0) && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -397,9 +839,10 @@ export function AskQueries() {
                   
                   <button
                     onClick={handleStartChat}
-                    className={`bg-gradient-to-r from-primary-200 to-primary-300 hover:from-primary-300 hover:to-primary-200 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-2xl font-semibold text-sm sm:text-base md:text-lg shadow-lg transition-all duration-300 hover:shadow-xl dark:from-primary-200 dark:to-blue-600 dark:hover:from-blue-600 dark:hover:to-primary-200 flex-shrink-0 w-full break-words z-40`}
+                    disabled={isHistoryOpen || isTransitioning}
+                    className={`bg-gradient-to-r from-primary-200 to-primary-300 hover:from-primary-300 hover:to-primary-200 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-2xl font-semibold text-sm sm:text-base md:text-lg shadow-lg transition-all duration-300 hover:shadow-xl dark:from-primary-200 dark:to-blue-600 dark:hover:from-blue-600 dark:hover:to-primary-200 flex-shrink-0 w-full break-words z-40 disabled:opacity-50 disabled:cursor-not-allowed ${isTransitioning ? 'animate-pulse' : ''}`}
                   >
-                    Start Conversation
+                    {isTransitioning ? 'Starting...' : 'Start Conversation'}
                   </button>
                 </motion.div>
               </motion.div>
@@ -425,13 +868,27 @@ export function AskQueries() {
             ))}
             {isLoading && <LoadingIndicator />}
             {error && (
-              <div className="flex justify-center animate-fade-in">
-                <div className="bg-accent-yellow/20 border border-primary-100/30 rounded-lg px-4 py-3 max-w-md dark:bg-white dark:text-accent-yellow dark:border-blue-700/40">
-                  <p className="text-red-700 font-semibold text-sm text-center">
-                    {error}
-                  </p>
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="flex justify-center animate-fade-in"
+              >
+                <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 max-w-md dark:bg-red-900/20 dark:border-red-700/40 relative">
+                  <div className="flex items-center justify-between">
+                    <p className="text-red-700 dark:text-red-300 font-medium text-sm text-center flex-1">
+                      {error}
+                    </p>
+                    <button
+                      onClick={clearError}
+                      className="ml-2 text-red-400 hover:text-red-600 dark:text-red-500 dark:hover:text-red-300 transition-colors"
+                      aria-label="Close error"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
                 </div>
-              </div>
+              </motion.div>
             )}
             <div ref={endOfMessagesRef} />
           </div>
@@ -440,30 +897,39 @@ export function AskQueries() {
               <VoiceButton
                 onResult={handleVoiceInput}
                 size="lg"
-                className="!w-10 !h-10 sm:!w-12 sm:!h-12 rounded-full bg-primary-200 dark:bg-primary-200/80 shadow-md flex items-center justify-center dark:hover:bg-blue-700 [&>svg]:scale-75 sm:[&>svg]:scale-100"
-                disabled={isLoading || inputDisabled || showStartOverlay}
+                className="!w-10 !h-10 sm:!w-12 sm:!h-12 rounded-full bg-primary-200 dark:bg-primary-200/80 shadow-md flex items-center justify-center dark:hover:bg-blue-700 [&>svg]:scale-75 sm:[&>svg]:scale-100 disabled:opacity-50 transition-all duration-200"
+                disabled={isLoading || inputDisabled || (messages.length === 0 && chatSessions.length === 0) || isHistoryOpen || isTransitioning}
               />
               <input
                 type="text"
                 value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                className="flex-1 min-w-0 px-4 py-3 sm:px-5 sm:py-4 rounded-xl border-2 border-primary-100/30 dark:border-blue-800/40 bg-primary-50/80 dark:bg-dark-100/80 text-primary-300 dark:text-white placeholder:text-primary-200 dark:placeholder:text-blue-200/60 text-sm sm:text-base shadow-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                placeholder="Type your message..."
+                onChange={(e) => {
+                  setInputMessage(e.target.value);
+                  setLastUserActivity(Date.now());
+                }}
+                className="flex-1 min-w-0 px-4 py-3 sm:px-5 sm:py-4 rounded-xl border-2 border-primary-100/30 dark:border-blue-800/40 bg-primary-50/80 dark:bg-dark-100/80 text-primary-300 dark:text-white placeholder:text-primary-200 dark:placeholder:text-blue-200/60 text-sm sm:text-base shadow-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:border-primary-200 dark:focus:border-blue-600 focus:ring-2 focus:ring-primary-200/20 dark:focus:ring-blue-600/20 focus:outline-none"
+                placeholder={isTransitioning ? "Loading..." : "Type your message..."}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     handleSendMessage();
                   }
+                  if (e.key === "Escape") {
+                    setInputMessage("");
+                  }
                 }}
-                disabled={isLoading || inputDisabled || showStartOverlay}
+                disabled={isLoading || inputDisabled || (messages.length === 0 && chatSessions.length === 0) || isHistoryOpen || isTransitioning}
+                maxLength={1000}
+                autoComplete="off"
+                spellCheck="true"
               />
-              {isSpeaking && !showStartOverlay ? (
+              {isSpeaking ? (
                 <button
                   onClick={() => {
                     stop();
                     setInputDisabled(false); // Re-enable inputs when user stops speech
                   }}
-                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-red-500 hover:bg-red-600 dark:bg-red-500 dark:hover:bg-red-600 text-white dark:text-white border border-red-400 dark:border-red-400 shadow-md flex items-center justify-center transition-all duration-200 hover:scale-105"
+                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-red-500 hover:bg-red-600 dark:bg-red-500 dark:hover:bg-red-600 text-white dark:text-white border border-red-400 dark:border-red-400 shadow-md flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
                   aria-label="Stop AI Voice"
                   type="button"
                 >
@@ -472,8 +938,8 @@ export function AskQueries() {
               ) : (
                 <button
                   onClick={() => handleSendMessage()}
-                  disabled={isLoading || inputDisabled || showStartOverlay}
-                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-primary-200 hover:bg-primary-300 dark:bg-primary-200 dark:hover:bg-blue-700 text-white dark:text-white border border-primary-100/30 dark:border-blue-700/40 shadow-md flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105"
+                  disabled={isLoading || inputDisabled || (messages.length === 0 && chatSessions.length === 0) || isHistoryOpen || isTransitioning || !inputMessage.trim()}
+                  className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-primary-200 hover:bg-primary-300 dark:bg-primary-200 dark:hover:bg-blue-700 text-white dark:text-white border border-primary-100/30 dark:border-blue-700/40 shadow-md flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 ${isLoading ? 'animate-pulse' : ''}`}
                   aria-label="Send Message"
                   type="button"
                 >
@@ -484,8 +950,128 @@ export function AskQueries() {
           </div>
         </motion.div>
       </div>
+
+      {/* Chat History Sliding Panel */}
+      <AnimatePresence>
+        {isHistoryOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-50"
+            />
+            
+            {/* Sliding Panel */}
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed left-0 top-0 h-full w-80 bg-white dark:bg-dark-200 shadow-2xl z-50 flex flex-col"
+            >
+              {/* Panel Header */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-2">
+                  <History className="w-5 h-5 text-primary-200" />
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Chat History</h2>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={createNewSession}
+                    disabled={isTransitioning}
+                    className="p-2 rounded-lg bg-primary-200 hover:bg-primary-300 text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="New Chat"
+                  >
+                    <Plus className={`w-4 h-4 ${isTransitioning ? 'animate-spin' : ''}`} />
+                  </button>
+                  <button
+                    onClick={toggleHistory}
+                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
+                  >
+                    <X className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Sessions List */}
+              <div className="flex-1 overflow-y-auto p-2">
+                {chatSessions.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
+                    <MessageCircle className="w-12 h-12 mb-2 opacity-50" />
+                    <p className="text-sm text-center">No chat sessions yet</p>
+                    <p className="text-xs text-center mt-1">Start a conversation to create your first session</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {chatSessions.map((session) => (
+                      <motion.div
+                        key={session.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className={`p-3 rounded-lg border transition-all duration-200 cursor-pointer group ${
+                          currentSessionId === session.id
+                            ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-700'
+                            : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        }`}
+                        onClick={() => switchToSession(session.id)}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <MessageCircle className="w-4 h-4 text-primary-200 flex-shrink-0" />
+                              <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                {session.name}
+                              </h3>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {formatRelativeTime(session.lastActivity)}
+                            </p>
+                            {session.messages.length > 0 && (
+                              <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 truncate">
+                                {session.messages[session.messages.length - 1]?.message?.substring(0, 50)}...
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded">
+                                {session.messages.length} messages
+                              </span>
+                              {session.id === currentSessionId && (
+                                <span className="text-xs bg-primary-200 text-white px-2 py-1 rounded">
+                                  Active
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!isTransitioning) {
+                                deleteSession(session.id);
+                              }
+                            }}
+                            disabled={isTransitioning}
+                            className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Delete Session"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </button>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Bottom Navigation Bar */}
-      <BottomNavigation />
+      <div className={isHistoryOpen ? 'pointer-events-none opacity-50' : ''}>
+        <BottomNavigation />
+      </div>
       <style>{`
         @keyframes fade-in {
           from {
