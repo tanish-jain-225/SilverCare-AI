@@ -252,7 +252,7 @@ export function AskQueries() {
       setIsInitialWelcomePlaying(true);
       setInputDisabled(true); // Disable inputs before speaking
       // Speak welcome message only when page loads with no existing session and no saved sessions
-      speak("Welcome to AI Assistant", {
+      speak(cleanTextForSpeech("Welcome to AI Assistant"), {
         onended: () => {
           setIsInitialWelcomePlaying(false);
           // Keep inputs disabled until user starts conversation
@@ -301,7 +301,7 @@ export function AskQueries() {
           setInputDisabled(true); // Disable inputs before speaking
           
           // Start speaking the welcome message
-          speak(welcomeMessageText, {
+          speak(cleanTextForSpeech(welcomeMessageText), {
             onended: () => {
               setInputDisabled(false);
             },
@@ -426,7 +426,7 @@ export function AskQueries() {
         setInputDisabled(true); // Disable inputs before speaking
         
         // Start speaking the welcome message with error handling
-        speak(welcomeMessageText, {
+        speak(cleanTextForSpeech(welcomeMessageText), {
           onended: () => {
             setInputDisabled(false);
           },
@@ -498,7 +498,7 @@ export function AskQueries() {
         // Disable inputs while speaking but keep pause button available
         setInputDisabled(true);
         speak(
-          `Emergency situation detected with ${Math.round(emergencyData.confidence * 100)} percent confidence. I've opened WhatsApp for your emergency contacts with a detailed emergency message.`,
+          cleanTextForSpeech(`Emergency situation detected with ${Math.round(emergencyData.confidence * 100)} percent confidence. I've opened WhatsApp for your emergency contacts with a detailed emergency message.`),
           {
             onended: () => {
               setInputDisabled(false); // Re-enable inputs after speech ends
@@ -526,7 +526,7 @@ export function AskQueries() {
         // Provide voice feedback for emergency error with input control
         setInputDisabled(true);
         speak(
-          "Emergency detected but failed to open WhatsApp contacts. Please manually call your emergency contacts or emergency services immediately.",
+          cleanTextForSpeech("Emergency detected but failed to open WhatsApp contacts. Please manually call your emergency contacts or emergency services immediately."),
           {
             onended: () => {
               setInputDisabled(false); // Re-enable inputs after speech ends
@@ -560,7 +560,7 @@ export function AskQueries() {
       // Disable inputs while speaking but keep pause button available
       setInputDisabled(true);
       speak(
-        "Emergency situation detected with high confidence, but you don't have emergency contacts configured. Please call 911 or emergency services directly.",
+        cleanTextForSpeech("Emergency situation detected with high confidence, but you don't have emergency contacts configured. Please call 911 or emergency services directly."),
         {
           onended: () => {
             setInputDisabled(false); // Re-enable inputs after speech ends
@@ -603,12 +603,23 @@ export function AskQueries() {
     setIsLoading(true);
 
     try {
+      // Prepare chat history for context (excluding system messages like welcome, emergency, reminder notifications)
+      const chatHistory = messages
+        .filter(msg => !msg.isEmergency && !msg.isReminder && !msg.isError) // Only include regular chat messages
+        .map(msg => ({
+          role: msg.isUser ? "user" : "assistant",
+          content: msg.message,
+          timestamp: msg.timestamp
+        }));
+
       const response = await fetch(`${route_endpoint}/chat/message`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           input: messageToSend,
           userId: user.id,
+          chatHistory: chatHistory, // Send chat history for context
+          sessionId: currentSessionId, // Include session ID for context
         }),
       });
 
@@ -686,7 +697,7 @@ export function AskQueries() {
           }
         }
         setInputDisabled(true);
-        speak(aiResponseMessage, {
+        speak(cleanTextForSpeech(aiResponseMessage), {
           onended: () => {
             setInputDisabled(false); // Re-enable inputs after speech ends
           },
@@ -761,6 +772,38 @@ export function AskQueries() {
   // Enhanced error clearing function
   const clearError = () => {
     setError(null);
+  };
+
+  // Utility function to clean text for speech synthesis
+  const cleanTextForSpeech = (text) => {
+    if (!text || typeof text !== 'string') return '';
+    
+    return text
+      // Keep emojis but remove markdown formatting
+      .replace(/\*\*(.*?)\*\*/g, '$1') // Bold
+      .replace(/\*(.*?)\*/g, '$1') // Italic
+      .replace(/__(.*?)__/g, '$1') // Underline
+      .replace(/~~(.*?)~~/g, '$1') // Strikethrough
+      .replace(/`(.*?)`/g, '$1') // Inline code
+      .replace(/```[\s\S]*?```/g, '') // Code blocks
+      .replace(/#{1,6}\s*(.*)/g, '$1') // Headers
+      .replace(/>\s*(.*)/g, '$1') // Blockquotes
+      .replace(/\[(.*?)\]\(.*?\)/g, '$1') // Links
+      // Remove HTML tags
+      .replace(/<[^>]*>/g, '')
+      // Remove excessive punctuation and special characters
+      .replace(/[•◦▸▹►▶]/g, '') // Bullet points
+      .replace(/[─━═]+/g, '') // Horizontal lines
+      .replace(/[┌┐└┘├┤┬┴┼]/g, '') // Box drawing
+      .replace(/[""'']/g, '"') // Smart quotes to regular quotes
+      .replace(/[…]/g, '...') // Ellipsis
+      .replace(/[–—]/g, '-') // En/em dashes to hyphens
+      // Clean up whitespace
+      .replace(/\s+/g, ' ') // Multiple spaces to single space
+      .replace(/\n+/g, '. ') // Multiple newlines to periods
+      .replace(/\.\s*\./g, '.') // Multiple periods
+      .replace(/\s*\.\s*/g, '. ') // Fix period spacing
+      .trim();
   };
 
   // Auto-clear errors after 10 seconds

@@ -1024,8 +1024,8 @@ export function UserDetails() {
       const updatePromise = updateUser(cleanedFormData);
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
-          reject(new Error("Update operation timed out after 25 seconds"));
-        }, 35000); // 35 second timeout for the actual update
+          reject(new Error("Update operation timed out after 30 seconds"));
+        }, 30000); // 30 second timeout for the actual update
       });
 
       // Wait for either the update to complete or timeout

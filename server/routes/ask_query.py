@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 from textblob import TextBlob
 from datetime import datetime, timedelta
 from routes.format_reminder import save_to_mongodb
-from typing import Any
 
 import json as pyjson
 
@@ -849,9 +848,17 @@ def send_message():
     data = request.get_json()
     user_message = data.get('input')
     user_id = data.get('userId')
+    chat_history = data.get('chatHistory', [])  # Get chat history for context
+    session_id = data.get('sessionId', None)  # Get session ID for context
+    
     if not user_message or not user_id:
         return jsonify({"error": "No message provided"}), 400
 
+    # Debug: Print chat history info
+    print(f"Chat history received: {len(chat_history)} messages")
+    if chat_history:
+        print(f"Recent chat context: {chat_history[-2:] if len(chat_history) >= 2 else chat_history}")
+    
     # Emergency sentiment analysis
     is_emergency, emergency_confidence, emergency_analysis = analyze_emergency_intent(
         user_message)
@@ -926,18 +933,36 @@ def send_message():
             print(f"Reminder processing failed: {reminder_result}")
 
     # Modify system prompt based on emergency detection or reminder context
+    base_context = ""
+    if chat_history and len(chat_history) > 0:
+        base_context = f" You are in an ongoing conversation with the user. Remember the context from previous messages in this session to provide more personalized and coherent responses. This is message #{len(chat_history) + 1} in the current session."
+    
     if is_emergency:
-        system_prompt = SYSTEM_PROMPT + " IMPORTANT: The user's message has been detected as a potential emergency situation. Respond with immediate care, empathy, and appropriate guidance while being supportive and calm."
+        system_prompt = SYSTEM_PROMPT + base_context + " IMPORTANT: The user's message has been detected as a potential emergency situation. Respond with immediate care, empathy, and appropriate guidance while being supportive and calm."
     elif is_reminder_request and not reminder_result:
-        system_prompt = SYSTEM_PROMPT + " The user seems to want to set a reminder but the automatic processing failed. Politely acknowledge this and suggest they can use the reminders section or try rephrasing with more specific details like date, time, and task."
+        system_prompt = SYSTEM_PROMPT + base_context + " The user seems to want to set a reminder but the automatic processing failed. Politely acknowledge this and suggest they can use the reminders section or try rephrasing with more specific details like date, time, and task."
     else:
-        system_prompt = SYSTEM_PROMPT + \
+        system_prompt = SYSTEM_PROMPT + base_context + \
             (f" {emotion_instruction}" if emotion_instruction else "")
 
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_message}
-    ]
+    # Build messages array with chat history for context
+    messages = [{"role": "system", "content": system_prompt}]
+    
+    # Add chat history for context (limit to last 10 messages to avoid token limits)
+    if chat_history and len(chat_history) > 0:
+        # Take the last 10 messages to maintain recent context while staying within token limits
+        recent_history = chat_history[-10:] if len(chat_history) > 10 else chat_history
+        
+        for msg in recent_history:
+            # Ensure the message has proper role and content
+            if msg.get('role') in ['user', 'assistant'] and msg.get('content'):
+                messages.append({
+                    "role": msg['role'],
+                    "content": msg['content']
+                })
+    
+    # Add the current user message
+    messages.append({"role": "user", "content": user_message})
 
     response = client.chat.completions.create(
         model="deepseek-ai/DeepSeek-V3",
