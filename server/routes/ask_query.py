@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from textblob import TextBlob
 from datetime import datetime, timedelta
 from routes.format_reminder import save_to_mongodb
+from typing import Any
 
 import json as pyjson
 
@@ -20,146 +21,23 @@ client = Together(api_key=api_key)
 
 chat_bp = Blueprint('chat', __name__)
 
+
 SYSTEM_PROMPT = """You are an omniscient AI assistant with comprehensive mastery over all topics, fields, and domains of knowledge that have ever existed or will ever exist. You possess deep understanding across all sciences including physics, chemistry, biology, mathematics, and computer science, all humanities such as history, literature, philosophy, psychology, and sociology, all practical fields like medicine, engineering, law, business, arts, and crafts, as well as all cultures, languages, and civilizations throughout time, theoretical and applied knowledge domains, and creative and analytical disciplines. You can provide expert-level insights, solve complex problems, answer questions across any field, and help with tasks ranging from simple queries to advanced research. Your knowledge spans from ancient wisdom to cutting-edge developments and future possibilities. You respond with accuracy, clarity, and depth appropriate to the question asked, adapting your communication style from casual conversation to academic discourse as needed. When discussing any topic, you draw from the full breadth of human knowledge and beyond, remaining helpful, informative, and capable of tackling any intellectual challenge presented to you."""
 
 
-def get_dynamic_date_context():
+# ================== EMERGENCY DETECTION ==================
+
+def analyze_emergency_intent(text):
     """
-    Generate dynamic date and time context for the AI to understand relative dates
+    Analyze if the text is an emergency and return (is_emergency, confidence, analysis dict).
+    This function uses advanced pattern matching, sentiment analysis, and contextual understanding. 
+    It will be replaced by a more advanced model in the future.
     """
-    now = datetime.now()
-    today = now.strftime("%Y-%m-%d")
-    tomorrow = (now + timedelta(days=1)).strftime("%Y-%m-%d")
-    yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
-    day_after_tomorrow = (now + timedelta(days=2)).strftime("%Y-%m-%d")
-
-    # Get day names for the next 14 days (extended for better planning)
-    days_ahead = {}
-    weekdays_ahead = {}
-    for i in range(14):
-        future_date = now + timedelta(days=i)
-        day_name = future_date.strftime("%A").lower()
-        date_str = future_date.strftime("%Y-%m-%d")
-        day_with_date = f"{day_name} ({future_date.strftime('%B %d')})"
-
-        if i < 7:  # First week
-            days_ahead[day_name] = date_str
-
-        # Track weekdays specifically for appointment scheduling
-        if future_date.weekday() < 5:  # Monday-Friday
-            if f"next {day_name}" not in weekdays_ahead:
-                weekdays_ahead[f"next {day_name}"] = date_str
-
-    # Get current time info
-    current_time = now.strftime("%H:%M")
-    current_hour = now.hour
-    current_minute = now.minute
-
-    # Determine time of day with more granular slots
-    if 5 <= current_hour < 9:
-        time_of_day = "early morning"
-        suggested_time = "9:00 AM"
-    elif 9 <= current_hour < 12:
-        time_of_day = "morning"
-        suggested_time = "10:00 AM"
-    elif 12 <= current_hour < 14:
-        time_of_day = "midday"
-        suggested_time = "3:00 PM"
-    elif 14 <= current_hour < 17:
-        time_of_day = "afternoon"
-        suggested_time = "4:00 PM"
-    elif 17 <= current_hour < 20:
-        time_of_day = "evening"
-        suggested_time = "7:00 PM"
-    elif 20 <= current_hour < 23:
-        time_of_day = "night"
-        suggested_time = "9:00 AM"  # Suggest morning for next day
-    else:
-        time_of_day = "late night"
-        suggested_time = "9:00 AM"  # Suggest morning for next day
-
-    # Generate extended month context
-    current_month = now.strftime("%B").lower()
-    next_month = (now.replace(day=28) + timedelta(days=4)).replace(day=1)
-    next_month_name = next_month.strftime("%B").lower()
-
-    # Week context
-    current_week_start = now - timedelta(days=now.weekday())
-    next_week_start = current_week_start + timedelta(days=7)
-    this_week = f"this week (starts {current_week_start.strftime('%B %d')})"
-    next_week = f"next week (starts {next_week_start.strftime('%B %d')})"
-
-    # Generate comprehensive context
-    context = f"""
-CURRENT DATE & TIME CONTEXT (Use this for intelligent date/time inference):
-
-Current Information:
-- Today is: {today} ({now.strftime("%A, %B %d, %Y")})
-- Tomorrow is: {tomorrow} ({(now + timedelta(days=1)).strftime("%A, %B %d")})
-- Day after tomorrow: {day_after_tomorrow} ({(now + timedelta(days=2)).strftime("%A, %B %d")})
-- Yesterday was: {yesterday} ({(now - timedelta(days=1)).strftime("%A, %B %d")})
-- Current time: {current_time}
-- Time of day: {time_of_day}
-
-Day Name Mappings (next 7 days):
-- Today ({now.strftime("%A").lower()}): {today}
-- Tomorrow ({(now + timedelta(days=1)).strftime("%A").lower()}): {tomorrow}
-""" + "\n".join([f"- {day} ({(now + timedelta(days=i)).strftime('%B %d')}): {date}"
-                for i, (day, date) in enumerate(days_ahead.items())
-                if day != now.strftime("%A").lower() and i < 7]) + f"""
-
-Weekday Mappings (for appointments/business):
-""" + "\n".join([f"- {day}: {date}" for day, date in weekdays_ahead.items()]) + f"""
-
-Smart Time Defaults (use when time not specified):
-- Early morning: 7:00 AM (workout, early tasks)
-- Morning: 9:00 AM (medicine, appointments, general tasks)
-- Late morning: 11:00 AM (meetings, calls)
-- Midday/Lunch: 12:00 PM (lunch reminders)
-- Afternoon: 3:00 PM (appointments, errands)
-- Late afternoon: 4:00 PM (pickup, visits)
-- Evening: 7:00 PM (dinner, evening medicine)
-- Night: 8:00 PM (evening activities, bedtime prep)
-- Current suggestion: {suggested_time} (since it's {time_of_day} now)
-
-Smart Date Defaults (use when date not specified):
-- Medicine/Health: Tomorrow morning (for daily medicine) or today (for immediate needs)
-- Appointments/Meetings: Next suitable weekday (Mon-Fri)
-- Personal tasks: Today if before 6 PM, tomorrow if after 6 PM
-- Meals: Today for current meal, tomorrow for future meals
-- Exercise/Workout: Tomorrow morning or today if early in the day
-- Errands/Shopping: Today if afternoon, tomorrow if evening/night
-
-Extended Time References:
-- This week: {this_week}
-- Next week: {next_week}
-- This month: {current_month} {now.year}
-- Next month: {next_month_name} {next_month.year}
-
-INFERENCE RULES:
-1. "medicine" without time → 9:00 AM (morning) or 8:00 PM (if "evening" mentioned)
-2. "appointment" without date → next weekday (Monday-Friday)
-3. "tomorrow" → {tomorrow}
-4. "today" → {today}
-5. Weekday names → map to next occurrence of that day
-6. Meal names → breakfast: 8:00 AM, lunch: 12:00 PM, dinner: 7:00 PM
-7. Time of day words → morning: 9:00 AM, afternoon: 3:00 PM, evening: 7:00 PM, night: 8:00 PM
-8. No date/time specified → use smart defaults based on task type and current time
-"""
-
-    return context
-
-
-def analyze_emergency_sentiment(text):
-    """
-    Enhanced emergency detection using advanced sentiment analysis and contextual understanding
-    Returns: (is_emergency: bool, confidence: float, analysis: dict)
-    """
-    # TextBlob sentiment analysis
     blob = TextBlob(text)
-    polarity = blob.sentiment.polarity  # -1 (negative) to 1 (positive)
+    polarity = blob.sentiment.polarity  # type: ignore
+    subjectivity = blob.sentiment.subjectivity  # type: ignore
+    # -1 (negative) to 1 (positive)
     # 0 (objective) to 1 (subjective)
-    subjectivity = blob.sentiment.subjectivity
 
     # Immediate danger patterns (highest priority)
     immediate_danger = [
@@ -373,21 +251,373 @@ def analyze_emergency_sentiment(text):
 
     return is_emergency, confidence, analysis
 
+# ================== END EMERGENCY DETECTION ==================
+
+# ================== SMART DATE/TIME CONTEXT & VALIDATION ==================
+
+
+def smart_date_time_context(mode, *args, **kwargs):
+    """
+    Unified function for all date/time context, inference, and validation.
+    mode: 'context', 'default_date', 'default_time', 'validate_date', 'validate_time'
+    args: depends on mode
+    """
+    from datetime import datetime, timedelta
+    import re
+    now = datetime.now()
+
+    def context():
+        today = now.strftime("%Y-%m-%d")
+        tomorrow = (now + timedelta(days=1)).strftime("%Y-%m-%d")
+        yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+        day_after_tomorrow = (now + timedelta(days=2)).strftime("%Y-%m-%d")
+        days_ahead = {}
+        weekdays_ahead = {}
+        for i in range(14):
+            future_date = now + timedelta(days=i)
+            day_name = future_date.strftime("%A").lower()
+            date_str = future_date.strftime("%Y-%m-%d")
+            if i < 7:
+                days_ahead[day_name] = date_str
+            if future_date.weekday() < 5:
+                if f"next {day_name}" not in weekdays_ahead:
+                    weekdays_ahead[f"next {day_name}"] = date_str
+        current_time = now.strftime("%H:%M")
+        current_hour = now.hour
+        if 5 <= current_hour < 9:
+            time_of_day = "early morning"
+            suggested_time = "9:00 AM"
+        elif 9 <= current_hour < 12:
+            time_of_day = "morning"
+            suggested_time = "10:00 AM"
+        elif 12 <= current_hour < 14:
+            time_of_day = "midday"
+            suggested_time = "3:00 PM"
+        elif 14 <= current_hour < 17:
+            time_of_day = "afternoon"
+            suggested_time = "4:00 PM"
+        elif 17 <= current_hour < 20:
+            time_of_day = "evening"
+            suggested_time = "7:00 PM"
+        elif 20 <= current_hour < 23:
+            time_of_day = "night"
+            suggested_time = "9:00 AM"
+        else:
+            time_of_day = "late night"
+            suggested_time = "9:00 AM"
+        current_month = now.strftime("%B").lower()
+        next_month = (now.replace(day=28) + timedelta(days=4)).replace(day=1)
+        next_month_name = next_month.strftime("%B").lower()
+        current_week_start = now - timedelta(days=now.weekday())
+        next_week_start = current_week_start + timedelta(days=7)
+        this_week = f"this week (starts {current_week_start.strftime('%B %d')})"
+        next_week = f"next week (starts {next_week_start.strftime('%B %d')})"
+        context = f"""
+CURRENT DATE & TIME CONTEXT (Use this for intelligent date/time inference):
+
+Current Information:
+
+Day Name Mappings (next 7 days):
+""" + "\n".join([f"- {day} ({(now + timedelta(days=i)).strftime('%B %d')}): {date}" for i, (day, date) in enumerate(days_ahead.items()) if day != now.strftime('%A').lower() and i < 7]) + f"""
+
+Weekday Mappings (for appointments/business):
+""" + "\n".join([f"- {day}: {date}" for day, date in weekdays_ahead.items()]) + f"""
+
+Smart Time Defaults (use when time not specified):
+
+Smart Date Defaults (use when date not specified):
+
+Extended Time References:
+
+INFERENCE RULES:
+1. "medicine" without time → 9:00 AM (morning) or 8:00 PM (if "evening" mentioned)
+2. "appointment" without date → next weekday (Monday-Friday)
+3. "tomorrow" → {tomorrow}
+4. "today" → {today}
+5. Weekday names → map to next occurrence of that day
+6. Meal names → breakfast: 8:00 AM, lunch: 12:00 PM, dinner: 7:00 PM
+7. Time of day words → morning: 9:00 AM, afternoon: 3:00 PM, evening: 7:00 PM, night: 8:00 PM
+8. No date/time specified → use smart defaults based on task type and current time
+"""
+        return context
+
+    def default_date(title):
+        title_lower = title.lower()
+        current_hour = now.hour
+        if any(word in title_lower for word in ['medicine', 'medication', 'pill', 'vitamin', 'drug', 'treatment', 'dose']):
+            if current_hour >= 18:
+                return (now + timedelta(days=1)).strftime("%Y-%m-%d")
+            elif 'tonight' in title_lower or 'evening' in title_lower:
+                return now.strftime("%Y-%m-%d")
+            else:
+                return (now + timedelta(days=1)).strftime("%Y-%m-%d")
+        if any(word in title_lower for word in ['appointment', 'meeting', 'doctor', 'dentist', 'visit', 'consultation']):
+            days_ahead = 1
+            future_date = now + timedelta(days=days_ahead)
+            while future_date.weekday() >= 5:
+                days_ahead += 1
+                future_date = now + timedelta(days=days_ahead)
+                if days_ahead > 7:
+                    break
+            return future_date.strftime("%Y-%m-%d")
+        if any(word in title_lower for word in ['work', 'office', 'meeting', 'call', 'email', 'project', 'deadline']):
+            days_ahead = 1
+            future_date = now + timedelta(days=days_ahead)
+            while future_date.weekday() >= 5:
+                days_ahead += 1
+                future_date = now + timedelta(days=days_ahead)
+                if days_ahead > 7:
+                    break
+            return future_date.strftime("%Y-%m-%d")
+        if any(word in title_lower for word in ['breakfast', 'lunch', 'dinner', 'meal', 'eat']):
+            if 'breakfast' in title_lower and current_hour >= 10:
+                return (now + timedelta(days=1)).strftime("%Y-%m-%d")
+            elif 'lunch' in title_lower and current_hour >= 14:
+                return (now + timedelta(days=1)).strftime("%Y-%m-%d")
+            elif 'dinner' in title_lower and current_hour >= 21:
+                return (now + timedelta(days=1)).strftime("%Y-%m-%d")
+            else:
+                return now.strftime("%Y-%m-%d")
+        if any(word in title_lower for word in ['workout', 'exercise', 'gym', 'walk', 'run', 'jog', 'fitness']):
+            if current_hour >= 20:
+                return (now + timedelta(days=1)).strftime("%Y-%m-%d")
+            else:
+                return now.strftime("%Y-%m-%d")
+        if any(word in title_lower for word in ['shop', 'buy', 'store', 'grocery', 'errand', 'pickup', 'get']):
+            if current_hour >= 19:
+                return (now + timedelta(days=1)).strftime("%Y-%m-%d")
+            else:
+                return now.strftime("%Y-%m-%d")
+        if current_hour >= 20:
+            return (now + timedelta(days=1)).strftime("%Y-%m-%d")
+        elif current_hour >= 18:
+            return (now + timedelta(days=1)).strftime("%Y-%m-%d")
+        else:
+            return now.strftime("%Y-%m-%d")
+
+    def default_time(title):
+        title_lower = title.lower()
+        current_hour = now.hour
+        if any(word in title_lower for word in ['medicine', 'medication', 'pill', 'vitamin']):
+            if 'morning' in title_lower or 'am' in title_lower:
+                return "8:00 AM"
+            elif 'evening' in title_lower or 'night' in title_lower or 'pm' in title_lower:
+                return "8:00 PM"
+            elif 'afternoon' in title_lower:
+                return "3:00 PM"
+            elif 'bedtime' in title_lower:
+                return "10:00 PM"
+            else:
+                return "9:00 AM"
+        if 'breakfast' in title_lower:
+            return "8:00 AM"
+        elif 'lunch' in title_lower:
+            return "12:30 PM"
+        elif 'dinner' in title_lower:
+            return "7:00 PM"
+        elif 'snack' in title_lower:
+            if current_hour < 12:
+                return "10:30 AM"
+            else:
+                return "3:30 PM"
+        if any(word in title_lower for word in ['appointment', 'meeting', 'doctor', 'dentist', 'consultation']):
+            if 'morning' in title_lower:
+                return "10:00 AM"
+            elif 'afternoon' in title_lower:
+                return "2:00 PM"
+            else:
+                return "10:00 AM"
+        if any(word in title_lower for word in ['work', 'office', 'call', 'email', 'meeting']):
+            return "10:00 AM"
+        if any(word in title_lower for word in ['workout', 'exercise', 'gym', 'walk', 'run', 'jog']):
+            if 'morning' in title_lower:
+                return "7:00 AM"
+            elif 'evening' in title_lower:
+                return "6:00 PM"
+            else:
+                return "7:00 AM"
+        if any(word in title_lower for word in ['shop', 'buy', 'store', 'grocery', 'errand', 'pickup']):
+            return "2:00 PM"
+        if any(word in title_lower for word in ['study', 'homework', 'read', 'learn', 'practice']):
+            if current_hour < 12:
+                return "10:00 AM"
+            else:
+                return "4:00 PM"
+        if any(word in title_lower for word in ['sleep', 'bed', 'bedtime', 'rest']):
+            return "10:00 PM"
+        if any(word in title_lower for word in ['wake', 'alarm', 'get up']):
+            return "7:00 AM"
+        if 5 <= current_hour < 9:
+            return "9:00 AM"
+        elif 9 <= current_hour < 12:
+            return "10:00 AM"
+        elif 12 <= current_hour < 14:
+            return "3:00 PM"
+        elif 14 <= current_hour < 17:
+            return "4:00 PM"
+        elif 17 <= current_hour < 20:
+            return "7:00 PM"
+        else:
+            return "9:00 AM"
+
+    def validate_date(date_str):
+        if not date_str or str(date_str).lower() in ['null', 'none', '', 'undefined']:
+            return now.strftime("%Y-%m-%d")
+        try:
+            date_str = str(date_str).strip()
+            # Already in correct format
+            if re.match(r'\d{4}-\d{2}-\d{2}', date_str):
+                parsed = datetime.strptime(date_str, "%Y-%m-%d")
+                return parsed.strftime("%Y-%m-%d")
+            date_lower = date_str.lower()
+            if date_lower == 'today':
+                return now.strftime("%Y-%m-%d")
+            elif date_lower == 'tomorrow':
+                return (now + timedelta(days=1)).strftime("%Y-%m-%d")
+            elif date_lower == 'yesterday':
+                return (now - timedelta(days=1)).strftime("%Y-%m-%d")
+            elif 'day after tomorrow' in date_lower:
+                return (now + timedelta(days=2)).strftime("%Y-%m-%d")
+            weekdays = ['monday', 'tuesday', 'wednesday',
+                        'thursday', 'friday', 'saturday', 'sunday']
+            for i, day in enumerate(weekdays):
+                if day in date_lower:
+                    days_ahead = (i - now.weekday()) % 7
+                    if days_ahead == 0:
+                        days_ahead = 7
+                    future_date = now + timedelta(days=days_ahead)
+                    return future_date.strftime("%Y-%m-%d")
+            if 'next week' in date_lower:
+                days_until_monday = (7 - now.weekday()) % 7
+                if days_until_monday == 0:
+                    days_until_monday = 7
+                return (now + timedelta(days=days_until_monday)).strftime("%Y-%m-%d")
+            if 'this week' in date_lower:
+                return (now + timedelta(days=1)).strftime("%Y-%m-%d")
+            date_patterns = [
+                "%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%m-%d-%Y", "%d-%m-%Y", "%Y/%m/%d",
+                "%B %d, %Y", "%B %d %Y", "%d %B %Y", "%m/%d", "%d/%m"
+            ]
+            for pattern in date_patterns:
+                try:
+                    parsed_date = datetime.strptime(date_str, pattern)
+                    if parsed_date.year == 1900:
+                        parsed_date = parsed_date.replace(year=now.year)
+                    return parsed_date.strftime("%Y-%m-%d")
+                except ValueError:
+                    continue
+            numbers = re.findall(r'\d+', date_str)
+            if len(numbers) >= 2:
+                try:
+                    if len(numbers) == 2:
+                        month, day = int(numbers[0]), int(numbers[1])
+                        if month <= 12 and day <= 31:
+                            date_obj = datetime(now.year, month, day)
+                            return date_obj.strftime("%Y-%m-%d")
+                    elif len(numbers) >= 3:
+                        month, day, year = int(numbers[0]), int(
+                            numbers[1]), int(numbers[2])
+                        if year < 100:
+                            year += 2000
+                        if month <= 12 and day <= 31:
+                            date_obj = datetime(year, month, day)
+                            return date_obj.strftime("%Y-%m-%d")
+                except ValueError:
+                    pass
+        except Exception as e:
+            print(f"Date parsing error for '{date_str}': {e}")
+        return now.strftime("%Y-%m-%d")
+
+    def validate_time(time_str):
+        if not time_str or str(time_str).lower() in ['null', 'none', '', 'undefined']:
+            return "9:00 AM"
+
+        def format_to_12hour(hour, minute):
+            if hour == 0:
+                return f"12:{minute:02d} AM"
+            elif hour < 12:
+                return f"{hour}:{minute:02d} AM"
+            elif hour == 12:
+                return f"12:{minute:02d} PM"
+            else:
+                return f"{hour-12}:{minute:02d} PM"
+        try:
+            time_str = str(time_str).strip().lower()
+            if re.match(r'\d{1,2}:\d{2}\s*(am|pm|a\.?m\.?|p\.?m\.?)', time_str):
+                return time_str.upper().replace('.', '')
+            if re.match(r'\d{1,2}:\d{2}$', time_str):
+                parts = time_str.split(':')
+                hour, minute = int(parts[0]), int(parts[1])
+                if 0 <= hour <= 23 and 0 <= minute <= 59:
+                    return format_to_12hour(hour, minute)
+            time_mappings = {
+                'midnight': '12:00 AM', 'noon': '12:00 PM', 'breakfast': '8:00 AM',
+                'lunch': '12:30 PM', 'dinner': '7:00 PM', 'bedtime': '10:00 PM',
+                'morning': '9:00 AM', 'afternoon': '3:00 PM', 'evening': '7:00 PM', 'night': '8:00 PM'
+            }
+            for word, time_val in time_mappings.items():
+                if word in time_str:
+                    return time_val
+            am_pm_pattern = r'(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.?m\.?|p\.?m\.?)'
+            match = re.search(am_pm_pattern, time_str)
+            if match:
+                hour = int(match.group(1))
+                minute = int(match.group(2)) if match.group(2) else 0
+                period = match.group(3).lower().replace('.', '')
+                if 1 <= hour <= 12 and 0 <= minute <= 59:
+                    period_str = "AM" if 'a' in period else "PM"
+                    return f"{hour}:{minute:02d} {period_str}"
+            colon_match = re.search(r'(\d{1,2}):(\d{2})', time_str)
+            if colon_match:
+                hour = int(colon_match.group(1))
+                minute = int(colon_match.group(2))
+                if 0 <= hour <= 23 and 0 <= minute <= 59:
+                    return format_to_12hour(hour, minute)
+            hour_only_match = re.search(r'\b(\d{1,2})\b', time_str)
+            if hour_only_match:
+                hour = int(hour_only_match.group(1))
+                if 0 <= hour <= 23:
+                    return format_to_12hour(hour, 0)
+                elif 1 <= hour <= 12:
+                    if hour < 8:
+                        return f"{hour}:00 PM"
+                    else:
+                        return f"{hour}:00 AM"
+        except Exception as e:
+            print(f"Time parsing error for '{time_str}': {e}")
+        return "9:00 AM"
+
+    if mode == 'context':
+        return context()
+    elif mode == 'default_date':
+        return default_date(args[0])
+    elif mode == 'default_time':
+        return default_time(args[0])
+    elif mode == 'validate_date':
+        return validate_date(args[0])
+    elif mode == 'validate_time':
+        return validate_time(args[0])
+    else:
+        raise ValueError('Unknown mode for smart_date_time_context')
+
+# ================== END SMART DATE/TIME CONTEXT & VALIDATION ==================
+
+# ================== REMINDER DETECTION & SETUP ==================
+
 
 def analyze_reminder_intent(text):
     """
-    Detect if user input is requesting to set a reminder
+    Detect if user input is requesting to set a reminder using regex patterns.
     Returns: (is_reminder_request: bool, confidence: float, components: dict)
+    It will be replaced by a more advanced model in the future. 
     """
     text_lower = text.lower()
-
     # Reminder keywords (very broad detection)
     reminder_keywords = [
         r'\b(remind|reminder|remember|alarm|alert|notify)\b',
         r'\b(wake me|schedule|appointment|meeting)\b',
         r'\b(don\'t forget|help me remember)\b',
         r'\b(set.{0,10}reminder|set.{0,10}alarm)\b',
-        # Add more voice-friendly patterns
         r'\b(remind me about|remind me of|remind me when)\b',
         r'\b(I need to remember|make sure I)\b',
         r'\b(please remind|can you remind|could you remind)\b',
@@ -395,46 +625,35 @@ def analyze_reminder_intent(text):
         r'\b(need to set a reminder|want to set a reminder|have to set a reminder)\b',
         r'\b(need to set an alarm|want to set an alarm|have to set an alarm)\b'
     ]
-
-    # Time indicators
     time_indicators = [
-        r'\b\d{1,2}:\d{2}\b',  # 12:30, 9:45
-        r'\b\d{1,2}\s*(am|pm|a\.m\.|p\.m\.)\b',  # 9 am, 3 PM
-        r'\b\d{1,2}\s*o\'?clock\b',  # 5 o'clock
+        r'\b\d{1,2}:\d{2}\b',
+        r'\b\d{1,2}\s*(am|pm|a\.m\.|p\.m\.)\b',
+        r'\b\d{1,2}\s*o\'?clock\b',
         r'\b(morning|afternoon|evening|night|noon|midnight)\b',
         r'\b(in the morning|in the afternoon|in the evening|at night)\b'
     ]
-
-    # Date indicators
     date_indicators = [
         r'\b(today|tomorrow|yesterday)\b',
         r'\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b',
         r'\b(next week|this week|next month|this month)\b',
-        r'\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b',  # 12/25/2024
+        r'\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b',
         r'\b(january|february|march|april|may|june|july|august|september|october|november|december)\b'
     ]
-
-    # Task indicators
     task_indicators = [
-        r'\bto\s+\w+\b',  # "to take", "to call"
+        r'\bto\s+\w+\b',
         r'\b(take|call|meet|visit|buy|eat|drink)\b',
         r'\b(medication|medicine|pills|appointment|meeting|workout|exercise)\b',
-        # Add more medical/health terms common in voice input
         r'\b(doctor|hospital|pharmacy|prescription|vitamin)\b',
         r'\b(urgent|important|critical|high priority)\b'
     ]
-
-    # Question patterns (to reduce false positives)
     question_patterns = [
         r'\b(what|when|where|how|why|should I|can I|do I)\b',
-        r'\?',  # Question mark
+        r'\?',
         r'\b(what time|when should|how often)\b',
         r'\b(should I set|can I set|do I need to set)\b',
         r'\b(what date|when is|how to set|where to set)\b',
         r'\b(should I remind|can you remind|do I need to remind)\b',
     ]
-
-    # Past tense patterns (to reduce false positives)
     past_patterns = [
         r'\b(took|called|met|visited|ate|drank|had)\b',
         r'\b(yesterday|last|already|just)\b',
@@ -442,8 +661,6 @@ def analyze_reminder_intent(text):
         r'\b(remembered|forgot|set|scheduled)\b',
         r'\b(needed|wanted|had to)\b',
     ]
-
-    # Count matches
     reminder_count = sum(
         1 for pattern in reminder_keywords if re.search(pattern, text_lower))
     time_count = sum(
@@ -456,60 +673,42 @@ def analyze_reminder_intent(text):
         1 for pattern in question_patterns if re.search(pattern, text_lower))
     past_count = sum(
         1 for pattern in past_patterns if re.search(pattern, text_lower))
-
-    # Calculate reminder score (more lenient)
     reminder_score = 0
-    reminder_score += reminder_count * 50  # Strong weight for reminder keywords
-    reminder_score += time_count * 30      # Time indicators
-    reminder_score += date_count * 25      # Date indicators
-    reminder_score += task_count * 20      # Task indicators
-
-    # Boost for polite requests
+    reminder_score += reminder_count * 50
+    reminder_score += time_count * 30
+    reminder_score += date_count * 25
+    reminder_score += task_count * 20
     if re.search(r'\b(can you|could you|please|would you)\b', text_lower):
         reminder_score += 20
-
-    # Reduce score for questions and past tense
     reminder_score -= question_count * 15
     reminder_score -= past_count * 20
-
-    # Extract components for display
     time_matches = []
     date_matches = []
     task_matches = []
-
     for pattern in time_indicators:
         matches = re.findall(pattern, text_lower)
         if matches:
             time_matches.extend(matches)
-
     for pattern in date_indicators:
         matches = re.findall(pattern, text_lower)
         if matches:
             date_matches.extend(matches)
-
-    # Extract task from common patterns
     task_patterns = [
         r'(?:remind me to|reminder to|to)\s+([^,\.!?]+)',
         r'(?:remind|reminder).*?(?:to|about)\s+([^,\.!?]+)',
         r'(?:don\'t forget to|remember to)\s+([^,\.!?]+)'
     ]
-
     for pattern in task_patterns:
         match = re.search(pattern, text_lower)
         if match:
             task_matches.append(match.group(1).strip())
             break
-
-    # MUCH more lenient threshold - any reminder keyword + (time OR date OR task) = reminder
-    # Also catch standalone reminder keywords for very simple requests
     is_reminder = (
         (reminder_count > 0 and (time_count > 0 or date_count > 0 or task_count > 0)) or
         reminder_score >= 30 or
-        # Short messages with reminder keywords
         (reminder_count > 0 and len(text.split()) <= 10)
     )
     confidence = min(reminder_score / 100.0, 1.0)
-
     components = {
         'reminder_score': reminder_score,
         'has_reminder_keyword': reminder_count > 0,
@@ -519,40 +718,23 @@ def analyze_reminder_intent(text):
         'time_matches': time_matches,
         'date_matches': date_matches,
         'task_matches': task_matches,
-        'word_count': len(text.split())
+        'word_count': len(text.split()),
+        'detection_method': 'regex'
     }
-
     return is_reminder, confidence, components
 
 
-def call_format_reminder_api(user_input, user_id):
+def setup_reminder(user_input, user_id):
     """
-    Call the format reminder API to process and save the reminder
-    Vercel-optimized with improved error handling and fallbacks
+    Process reminder creation, formatting, and saving. Returns result dict or error.
     """
-    # Option 1: Try direct function call when available
-    if save_to_mongodb:
-        try:
-            result = process_reminder_directly(user_input, user_id)
-            if result and result.get('success'):
-                return result
-            print("Direct processing succeeded but returned non-success result")
-        except Exception as e:
-            print(f"Direct reminder processing failed: {str(e)}")
-
-def process_reminder_directly(user_input, user_id):
-    """
-    Process reminder directly with intelligent date/time inference
-    """
+    from together import Together
+    import os
+    import json as pyjson
     try:
-        # Initialize Together AI client
         together_api_key = os.getenv('TOGETHER_API_KEY')
         reminder_client = Together(api_key=together_api_key)
-
-        # Get dynamic date/time context
-        date_context = get_dynamic_date_context()
-
-        # Enhanced system prompt with intelligent date/time handling
+        date_context = smart_date_time_context('context')
         enhanced_system_prompt = f"""You are an expert reminder creation assistant with advanced date/time intelligence. Parse user input into structured reminders with perfect contextual inference.
 
 {date_context}
@@ -561,111 +743,78 @@ CORE INSTRUCTIONS:
 1. Extract title, date, and time from user input with intelligent inference
 2. ALWAYS fill in missing date/time using the context above and smart defaults
 3. Convert relative dates and times accurately using current context
-4. Handle natural language patterns like "tomorrow morning", "Monday afternoon", "next week"
+4. Handle natural language patterns like \"tomorrow morning\", \"Monday afternoon\", \"next week\"
 5. Return valid JSON with proper date formats (YYYY-MM-DD) and time formats (HH:MM)
 
-INTELLIGENT INFERENCE RULES:
-- "remind me medicine" → tomorrow 09:00 (medicine default)
-- "appointment Monday" → next Monday 10:00 (appointment default) 
-- "call doctor" → next weekday 10:00 (business hours)
-- "take pills tonight" → today 20:00 (evening medicine)
-- "workout tomorrow" → tomorrow 07:00 (morning exercise)
-- "buy groceries" → today 14:00 if before 7PM, tomorrow 14:00 if after
-- "breakfast reminder" → tomorrow 08:00 if after 10AM, today 08:00 if before
-- "meeting this week" → next weekday 10:00
-
-TASK-SPECIFIC DEFAULTS:
-- Medicine/Pills: 09:00 (morning) or 20:00 (evening), tomorrow preferred
-- Appointments: 10:00, next business day (Mon-Fri)  
-- Meals: breakfast 08:00, lunch 12:30, dinner 19:00
-- Exercise: 07:00 (morning) or 18:00 (evening)
-- Work tasks: 10:00, next business day
-- Shopping: 14:00, today if before 7PM else tomorrow
-- Sleep/bedtime: 22:00
-- Wake up/alarm: 07:00
-
-TIME INFERENCE:
-- "morning" → 09:00
-- "afternoon" → 15:00  
-- "evening" → 19:00
-- "night" → 20:00
-- "lunch time" → 12:30
-- "dinner time" → 19:00
-- "bedtime" → 22:00
-
-DATE INFERENCE:
-- "today" → {datetime.now().strftime("%Y-%m-%d")}
-- "tomorrow" → {(datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")}
-- "monday", "tuesday" etc. → map to next occurrence
-- "next week" → start of next week
-- "this weekend" → next Saturday
-
-RETURN FORMAT:
-Single reminder: {{"title": "task description", "date": "YYYY-MM-DD", "time": "HH:MM"}}
-Multiple reminders: [{{"title": "task1", "date": "YYYY-MM-DD", "time": "HH:MM"}}, {{"title": "task2", "date": "YYYY-MM-DD", "time": "HH:MM"}}]
-
-EXAMPLES:
-Input: "remind me medicine"
-Output: {{"title": "take medicine", "date": "{(datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")}", "time": "09:00"}}
-
-Input: "appointment Monday afternoon"  
-Output: {{"title": "appointment", "date": "[next Monday's date]", "time": "14:00"}}
-
-Input: "call mom tomorrow morning"
-Output: {{"title": "call mom", "date": "{(datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")}", "time": "09:00"}}
-
 CRITICAL: Never return null/empty dates or times. Always infer using context and defaults above."""
-
-        # Call LLM to format the reminder with enhanced context
         response = reminder_client.chat.completions.create(
             model="deepseek-ai/DeepSeek-V3",
             messages=[
-                {
-                    "role": "system",
-                    "content": enhanced_system_prompt
-                },
-                {
-                    "role": "user",
-                    "content": f'Parse this into a reminder with intelligent date/time inference: {user_input}'
-                }
+                {"role": "system", "content": enhanced_system_prompt},
+                {"role": "user", "content": f'Parse this into a reminder with intelligent date/time inference: {user_input}'}
             ]
         )
 
-        content = response.choices[0].message.content
-        print(f"Enhanced LLM Response: {content}")
-
-        # Try to extract an array first
-        try:
-            import re
-            array_match = re.search(
-                r'```(?:json)?\s*(\[[\s\S]*?\])\s*```|(\[[\s\S]*?\])', content)
-            if array_match:
-                array_text = next(
-                    group for group in array_match.groups() if group is not None)
-                reminders_array = pyjson.loads(array_text)
-                if isinstance(reminders_array, list) and len(reminders_array) > 0:
-                    results = []
-                    for reminder in reminders_array:
-                        # Apply intelligent defaults with current context
-                        title = reminder.get('title') or "New Reminder"
-                        date = reminder.get(
-                            'date') or get_smart_default_date(title)
-                        time = reminder.get(
-                            'time') or get_smart_default_time(title)
-
-                        # Validate and format the data
-                        date = validate_and_format_date(date)
-                        time = validate_and_format_time(time)
-
-                        reminder_data = {
-                            "userId": user_id, "title": title, "date": date, "time": time}
-                        saved_reminder = save_to_mongodb(reminder_data)
-                        results.append(saved_reminder)
-                    return {"success": True, "reminders": results, "count": len(results)}
-        except Exception as e:
-            print(f"Error extracting array: {str(e)}")
-
-        # If not an array, extract a single JSON object
+        def extract_content(resp):
+            try:
+                # Handle Together API response object
+                if hasattr(resp, 'choices') and resp.choices:
+                    if hasattr(resp.choices[0], 'message') and hasattr(resp.choices[0].message, 'content'):
+                        return resp.choices[0].message.content
+                
+                # Handle dictionary response
+                if isinstance(resp, dict) and 'choices' in resp:
+                    choices = resp['choices']
+                    if isinstance(choices, list) and choices:
+                        msg = choices[0].get('message')
+                        if isinstance(msg, dict):
+                            return msg.get('content', '')
+                        elif isinstance(msg, str):
+                            return msg
+                
+                # Handle string response directly
+                if isinstance(resp, str):
+                    return resp
+                    
+                # Handle iterable response (streaming)
+                if hasattr(resp, '__iter__') and not isinstance(resp, dict) and not isinstance(resp, str):
+                    try:
+                        return ''.join([getattr(chunk, 'content', str(chunk)) for chunk in resp if chunk])
+                    except Exception:
+                        return str(list(resp))
+                
+                # Fallback
+                return str(resp)
+            except Exception as e:
+                print(f"Error extracting reminder content: {e}")
+                return ""
+        content = extract_content(response)
+        if not isinstance(content, str):
+            content = str(content)
+        import re
+        if not isinstance(content, str):
+            content = str(content)
+        array_match = re.search(
+            r'```(?:json)?\s*(\[[\s\S]*?\])\s*```|(\[[\s\S]*?\])', content)
+        if array_match:
+            array_text = next(
+                group for group in array_match.groups() if group is not None)
+            reminders_array = pyjson.loads(array_text)
+            if isinstance(reminders_array, list) and len(reminders_array) > 0:
+                results = []
+                for reminder in reminders_array:
+                    title = reminder.get('title') or "New Reminder"
+                    date = reminder.get('date') or smart_date_time_context(
+                        'default_date', title)
+                    time = reminder.get('time') or smart_date_time_context(
+                        'default_time', title)
+                    date = smart_date_time_context('validate_date', date)
+                    time = smart_date_time_context('validate_time', time)
+                    reminder_data = {"userId": user_id,
+                                     "title": title, "date": date, "time": time}
+                    saved_reminder = save_to_mongodb(reminder_data)
+                    results.append(saved_reminder)
+                return {"success": True, "reminders": results, "count": len(results)}
         match = re.search(
             r'```(?:json)?\s*(\{[\s\S]*?\})\s*```|(\{[\s\S]*?\})', content)
         if match:
@@ -673,18 +822,13 @@ CRITICAL: Never return null/empty dates or times. Always infer using context and
                 json_text = next(
                     group for group in match.groups() if group is not None)
                 reminder_json = pyjson.loads(json_text)
-
-                # Apply intelligent defaults with current context
                 title = reminder_json.get('title') or "New Reminder"
-                date = reminder_json.get(
-                    'date') or get_smart_default_date(title)
-                time = reminder_json.get(
-                    'time') or get_smart_default_time(title)
-
-                # Validate and format the data
-                date = validate_and_format_date(date)
-                time = validate_and_format_time(time)
-
+                date = reminder_json.get('date') or smart_date_time_context(
+                    'default_date', title)
+                time = reminder_json.get('time') or smart_date_time_context(
+                    'default_time', title)
+                date = smart_date_time_context('validate_date', date)
+                time = smart_date_time_context('validate_time', time)
                 reminder_data = {"userId": user_id,
                                  "title": title, "date": date, "time": time}
                 saved_reminder = save_to_mongodb(reminder_data)
@@ -692,368 +836,12 @@ CRITICAL: Never return null/empty dates or times. Always infer using context and
             except Exception as e:
                 print(f"Error processing single reminder: {str(e)}")
                 return {"error": "Failed to parse reminder JSON", "raw": content}
-
         return {"error": "No JSON found in LLM response", "raw": content}
-
     except Exception as e:
-        print(f"Error in direct reminder processing: {str(e)}")
+        print(f"Error in reminder setup: {str(e)}")
         return {"error": str(e)}
 
-
-def get_smart_default_date(title):
-    """Get intelligent default date based on reminder title and current context"""
-    now = datetime.now()
-    title_lower = title.lower()
-    current_hour = now.hour
-
-    # Medicine/health reminders - intelligent scheduling
-    if any(word in title_lower for word in ['medicine', 'medication', 'pill', 'vitamin', 'drug', 'treatment', 'dose']):
-        # If it's evening/night, suggest tomorrow morning
-        if current_hour >= 18:
-            return (now + timedelta(days=1)).strftime("%Y-%m-%d")
-        # If it's morning, could be today or tomorrow based on context
-        elif 'tonight' in title_lower or 'evening' in title_lower:
-            return now.strftime("%Y-%m-%d")  # Today evening
-        else:
-            # Default to tomorrow
-            return (now + timedelta(days=1)).strftime("%Y-%m-%d")
-
-    # Appointment/meeting - suggest next weekday (Monday-Friday)
-    if any(word in title_lower for word in ['appointment', 'meeting', 'doctor', 'dentist', 'visit', 'consultation']):
-        days_ahead = 1
-        future_date = now + timedelta(days=days_ahead)
-        # Find next weekday
-        while future_date.weekday() >= 5:  # Saturday=5, Sunday=6
-            days_ahead += 1
-            future_date = now + timedelta(days=days_ahead)
-            if days_ahead > 7:  # Prevent infinite loop
-                break
-        return future_date.strftime("%Y-%m-%d")
-
-    # Work-related tasks - suggest next weekday
-    if any(word in title_lower for word in ['work', 'office', 'meeting', 'call', 'email', 'project', 'deadline']):
-        days_ahead = 1
-        future_date = now + timedelta(days=days_ahead)
-        while future_date.weekday() >= 5:  # Next weekday
-            days_ahead += 1
-            future_date = now + timedelta(days=days_ahead)
-            if days_ahead > 7:
-                break
-        return future_date.strftime("%Y-%m-%d")
-
-    # Meal-related reminders
-    if any(word in title_lower for word in ['breakfast', 'lunch', 'dinner', 'meal', 'eat']):
-        if 'breakfast' in title_lower and current_hour >= 10:
-            # Tomorrow's breakfast
-            return (now + timedelta(days=1)).strftime("%Y-%m-%d")
-        elif 'lunch' in title_lower and current_hour >= 14:
-            # Tomorrow's lunch
-            return (now + timedelta(days=1)).strftime("%Y-%m-%d")
-        elif 'dinner' in title_lower and current_hour >= 21:
-            # Tomorrow's dinner
-            return (now + timedelta(days=1)).strftime("%Y-%m-%d")
-        else:
-            return now.strftime("%Y-%m-%d")  # Today's meal
-
-    # Exercise/workout - suggest next morning or today if early
-    if any(word in title_lower for word in ['workout', 'exercise', 'gym', 'walk', 'run', 'jog', 'fitness']):
-        if current_hour >= 20:  # After 8 PM, suggest tomorrow
-            return (now + timedelta(days=1)).strftime("%Y-%m-%d")
-        else:
-            return now.strftime("%Y-%m-%d")
-
-    # Shopping/errands - suggest today if daytime, tomorrow if evening
-    if any(word in title_lower for word in ['shop', 'buy', 'store', 'grocery', 'errand', 'pickup', 'get']):
-        if current_hour >= 19:  # After 7 PM
-            return (now + timedelta(days=1)).strftime("%Y-%m-%d")
-        else:
-            return now.strftime("%Y-%m-%d")
-
-    # General time-based defaults
-    if current_hour >= 20:  # After 8 PM - suggest tomorrow
-        return (now + timedelta(days=1)).strftime("%Y-%m-%d")
-    elif current_hour >= 18:  # After 6 PM - suggest tomorrow for most tasks
-        return (now + timedelta(days=1)).strftime("%Y-%m-%d")
-    else:  # Before 6 PM - could be today
-        return now.strftime("%Y-%m-%d")
-
-
-def get_smart_default_time(title):
-    """Get intelligent default time based on reminder title and current context"""
-    now = datetime.now()
-    title_lower = title.lower()
-    current_hour = now.hour
-
-    # Medicine times - more specific
-    if any(word in title_lower for word in ['medicine', 'medication', 'pill', 'vitamin']):
-        if 'morning' in title_lower or 'am' in title_lower:
-            return "8:00 AM"
-        elif 'evening' in title_lower or 'night' in title_lower or 'pm' in title_lower:
-            return "8:00 PM"
-        elif 'afternoon' in title_lower:
-            return "3:00 PM"
-        elif 'bedtime' in title_lower:
-            return "10:00 PM"
-        else:
-            return "9:00 AM"  # Default morning medicine
-
-    # Specific meal times
-    if 'breakfast' in title_lower:
-        return "8:00 AM"
-    elif 'lunch' in title_lower:
-        return "12:30 PM"
-    elif 'dinner' in title_lower:
-        return "7:00 PM"
-    elif 'snack' in title_lower:
-        if current_hour < 12:
-            return "10:30 AM"  # Morning snack
-        else:
-            return "3:30 PM"  # Afternoon snack
-
-    # Appointment times - business hours
-    if any(word in title_lower for word in ['appointment', 'meeting', 'doctor', 'dentist', 'consultation']):
-        if 'morning' in title_lower:
-            return "10:00 AM"
-        elif 'afternoon' in title_lower:
-            return "2:00 PM"
-        else:
-            return "10:00 AM"  # Default to morning
-
-    # Work-related times
-    if any(word in title_lower for word in ['work', 'office', 'call', 'email', 'meeting']):
-        return "10:00 AM"  # Standard business time
-
-    # Exercise/workout times
-    if any(word in title_lower for word in ['workout', 'exercise', 'gym', 'walk', 'run', 'jog']):
-        if 'morning' in title_lower:
-            return "7:00 AM"
-        elif 'evening' in title_lower:
-            return "6:00 PM"
-        else:
-            return "7:00 AM"  # Default to early morning
-
-    # Shopping/errands
-    if any(word in title_lower for word in ['shop', 'buy', 'store', 'grocery', 'errand', 'pickup']):
-        return "2:00 PM"  # Afternoon shopping
-
-    # Study/learning
-    if any(word in title_lower for word in ['study', 'homework', 'read', 'learn', 'practice']):
-        if current_hour < 12:
-            return "10:00 AM"  # Morning study
-        else:
-            return "4:00 PM"  # Afternoon study
-
-    # Sleep-related
-    if any(word in title_lower for word in ['sleep', 'bed', 'bedtime', 'rest']):
-        return "10:00 PM"
-
-    # Wake up
-    if any(word in title_lower for word in ['wake', 'alarm', 'get up']):
-        return "7:00 AM"
-
-    # Based on current time of day with more granular defaults
-    if 5 <= current_hour < 9:
-        return "9:00 AM"  # Early morning
-    elif 9 <= current_hour < 12:
-        return "10:00 AM"  # Morning
-    elif 12 <= current_hour < 14:
-        return "3:00 PM"  # Midday
-    elif 14 <= current_hour < 17:
-        return "4:00 PM"  # Afternoon
-    elif 17 <= current_hour < 20:
-        return "7:00 PM"  # Evening
-    else:
-        return "9:00 AM"  # Night - suggest next morning
-
-
-def validate_and_format_date(date_str):
-    """Validate and format date string to YYYY-MM-DD with enhanced parsing"""
-    if not date_str or str(date_str).lower() in ['null', 'none', '', 'undefined']:
-        return datetime.now().strftime("%Y-%m-%d")
-
-    try:
-        date_str = str(date_str).strip()
-        now = datetime.now()
-
-        # Already in correct format
-        if re.match(r'\d{4}-\d{2}-\d{2}', date_str):
-            # Validate it's a real date
-            parsed = datetime.strptime(date_str, "%Y-%m-%d")
-            return parsed.strftime("%Y-%m-%d")
-
-        # Handle relative date words
-        date_lower = date_str.lower()
-        if date_lower == 'today':
-            return now.strftime("%Y-%m-%d")
-        elif date_lower == 'tomorrow':
-            return (now + timedelta(days=1)).strftime("%Y-%m-%d")
-        elif date_lower == 'yesterday':
-            return (now - timedelta(days=1)).strftime("%Y-%m-%d")
-        elif 'day after tomorrow' in date_lower:
-            return (now + timedelta(days=2)).strftime("%Y-%m-%d")
-
-        # Handle weekday names
-        weekdays = ['monday', 'tuesday', 'wednesday',
-                    'thursday', 'friday', 'saturday', 'sunday']
-        for i, day in enumerate(weekdays):
-            if day in date_lower:
-                # Find the next occurrence of this weekday
-                days_ahead = (i - now.weekday()) % 7
-                if days_ahead == 0:  # If it's today, assume next week
-                    days_ahead = 7
-                future_date = now + timedelta(days=days_ahead)
-                return future_date.strftime("%Y-%m-%d")
-
-        # Handle "next week" - start of next week (Monday)
-        if 'next week' in date_lower:
-            days_until_monday = (7 - now.weekday()) % 7
-            if days_until_monday == 0:
-                days_until_monday = 7
-            return (now + timedelta(days=days_until_monday)).strftime("%Y-%m-%d")
-
-        # Handle "this week" - rest of this week
-        if 'this week' in date_lower:
-            # Find next day of this week
-            return (now + timedelta(days=1)).strftime("%Y-%m-%d")
-
-        # Handle various date formats
-        date_patterns = [
-            "%Y-%m-%d",    # 2025-07-11
-            "%m/%d/%Y",    # 07/11/2025
-            "%d/%m/%Y",    # 11/07/2025
-            "%m-%d-%Y",    # 07-11-2025
-            "%d-%m-%Y",    # 11-07-2025
-            "%Y/%m/%d",    # 2025/07/11
-            "%B %d, %Y",   # July 11, 2025
-            "%B %d %Y",    # July 11 2025
-            "%d %B %Y",    # 11 July 2025
-            "%m/%d",       # 07/11 (current year)
-            "%d/%m",       # 11/07 (current year)
-        ]
-
-        for pattern in date_patterns:
-            try:
-                parsed_date = datetime.strptime(date_str, pattern)
-                # If year is missing, use current year
-                if parsed_date.year == 1900:
-                    parsed_date = parsed_date.replace(year=now.year)
-                return parsed_date.strftime("%Y-%m-%d")
-            except ValueError:
-                continue
-
-        # Last resort: try to extract numbers and make a date
-        numbers = re.findall(r'\d+', date_str)
-        if len(numbers) >= 2:
-            try:
-                if len(numbers) == 2:  # Month and day
-                    month, day = int(numbers[0]), int(numbers[1])
-                    if month <= 12 and day <= 31:
-                        date_obj = datetime(now.year, month, day)
-                        return date_obj.strftime("%Y-%m-%d")
-                elif len(numbers) >= 3:  # Month, day, year
-                    month, day, year = int(numbers[0]), int(
-                        numbers[1]), int(numbers[2])
-                    if year < 100:  # Handle 2-digit years
-                        year += 2000
-                    if month <= 12 and day <= 31:
-                        date_obj = datetime(year, month, day)
-                        return date_obj.strftime("%Y-%m-%d")
-            except ValueError:
-                pass
-
-    except Exception as e:
-        print(f"Date parsing error for '{date_str}': {e}")
-
-    # Fallback to today
-    return datetime.now().strftime("%Y-%m-%d")
-
-
-def validate_and_format_time(time_str):
-    """Validate and format time string to 12-hour format (e.g., 9:00 AM) with enhanced parsing"""
-    if not time_str or str(time_str).lower() in ['null', 'none', '', 'undefined']:
-        return "9:00 AM"  # Default morning time
-
-    def format_to_12hour(hour, minute):
-        """Convert 24-hour format to 12-hour format"""
-        if hour == 0:
-            return f"12:{minute:02d} AM"
-        elif hour < 12:
-            return f"{hour}:{minute:02d} AM"
-        elif hour == 12:
-            return f"12:{minute:02d} PM"
-        else:
-            return f"{hour-12}:{minute:02d} PM"
-
-    try:
-        time_str = str(time_str).strip().lower()
-
-        # Already in 12-hour format
-        if re.match(r'\d{1,2}:\d{2}\s*(am|pm|a\.?m\.?|p\.?m\.?)', time_str):
-            return time_str.upper().replace('.', '')
-
-        # Already in 24-hour format
-        if re.match(r'\d{1,2}:\d{2}$', time_str):
-            parts = time_str.split(':')
-            hour, minute = int(parts[0]), int(parts[1])
-            if 0 <= hour <= 23 and 0 <= minute <= 59:
-                return format_to_12hour(hour, minute)
-
-        # Handle time words - order matters for partial matches
-        time_mappings = {
-            'midnight': '12:00 AM',
-            'noon': '12:00 PM',
-            'breakfast': '8:00 AM',
-            'lunch': '12:30 PM',
-            'dinner': '7:00 PM',
-            'bedtime': '10:00 PM',
-            'morning': '9:00 AM',
-            'afternoon': '3:00 PM',
-            'evening': '7:00 PM',
-            'night': '8:00 PM'
-        }
-
-        for word, time_val in time_mappings.items():
-            if word in time_str:
-                return time_val
-
-        # Handle 12-hour format with AM/PM - improved regex
-        am_pm_pattern = r'(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.?m\.?|p\.?m\.?)'
-        match = re.search(am_pm_pattern, time_str)
-        if match:
-            hour = int(match.group(1))
-            minute = int(match.group(2)) if match.group(2) else 0
-            period = match.group(3).lower().replace('.', '')
-
-            if 1 <= hour <= 12 and 0 <= minute <= 59:
-                period_str = "AM" if 'a' in period else "PM"
-                return f"{hour}:{minute:02d} {period_str}"
-
-        # Handle time with colon but no AM/PM - convert to 12-hour
-        colon_match = re.search(r'(\d{1,2}):(\d{2})', time_str)
-        if colon_match:
-            hour = int(colon_match.group(1))
-            minute = int(colon_match.group(2))
-            if 0 <= hour <= 23 and 0 <= minute <= 59:
-                return format_to_12hour(hour, minute)
-
-        # Handle hour only (e.g., "9", "15") - improved
-        hour_only_match = re.search(r'\b(\d{1,2})\b', time_str)
-        if hour_only_match:
-            hour = int(hour_only_match.group(1))
-            if 0 <= hour <= 23:
-                return format_to_12hour(hour, 0)
-            elif 1 <= hour <= 12:  # Assume reasonable times
-                # If it's a small number, decide AM/PM based on context
-                if hour < 8:  # Likely PM for times like 3, 5, 7
-                    return f"{hour}:00 PM"
-                else:
-                    return f"{hour}:00 AM"
-
-    except Exception as e:
-        print(f"Time parsing error for '{time_str}': {e}")
-
-    # Fallback to default time
-    return "9:00 AM"
+# ================== END REMINDER DETECTION & SETUP ==================
 
 
 @chat_bp.route('/chat/message', methods=['POST'])
@@ -1065,7 +853,7 @@ def send_message():
         return jsonify({"error": "No message provided"}), 400
 
     # Emergency sentiment analysis
-    is_emergency, emergency_confidence, emergency_analysis = analyze_emergency_sentiment(
+    is_emergency, emergency_confidence, emergency_analysis = analyze_emergency_intent(
         user_message)
 
     # Reminder intent analysis
@@ -1074,7 +862,7 @@ def send_message():
 
     # Regular sentiment analysis for response tone
     blob = TextBlob(user_message)
-    polarity = blob.sentiment.polarity
+    polarity = blob.sentiment.polarity  # type: ignore
     if polarity > 0.1:
         emotion_instruction = "The user seems happy or positive. You can reply in an encouraging and friendly tone."
     elif polarity < -0.1:
@@ -1091,20 +879,27 @@ def send_message():
         print(f"Reminder components: {reminder_components}")
 
         # Call format reminder API
-        reminder_result = call_format_reminder_api(user_message, user_id)
+        reminder_result = setup_reminder(user_message, user_id)
 
         if reminder_result and reminder_result.get('success'):
             # Successful reminder creation
             reminder_data = reminder_result.get(
                 'reminder') or reminder_result.get('reminders', [])
+            # If it's a list, take the first dict
             if isinstance(reminder_data, list) and len(reminder_data) > 0:
-                # Take first reminder if multiple
-                reminder_data = reminder_data[0]
-
-            # Generate confirmation response
-            title = reminder_data.get('title', 'your reminder')
-            date = reminder_data.get('date', '')
-            time = reminder_data.get('time', '')
+                first = reminder_data[0]
+                if isinstance(first, dict):
+                    title = first.get('title', 'your reminder')
+                    date = first.get('date', '')
+                    time = first.get('time', '')
+                else:
+                    title, date, time = 'your reminder', '', ''
+            elif isinstance(reminder_data, dict):
+                title = reminder_data.get('title', 'your reminder')
+                date = reminder_data.get('date', '')
+                time = reminder_data.get('time', '')
+            else:
+                title, date, time = 'your reminder', '', ''
 
             if date and time:
                 confirmation_msg = f"Perfect! I've set a reminder for '{title}' on {date} at {time}. I'll make sure to notify you when it's time."
@@ -1148,7 +943,50 @@ def send_message():
         model="deepseek-ai/DeepSeek-V3",
         messages=messages
     )
-    reply = response.choices[0].message.content.strip()
+
+    # --- Robustly extract content from response ---
+    def extract_content(resp):
+        try:
+            # Handle Together API response object
+            if hasattr(resp, 'choices') and resp.choices:
+                if hasattr(resp.choices[0], 'message') and hasattr(resp.choices[0].message, 'content'):
+                    return resp.choices[0].message.content
+            
+            # Handle dictionary response
+            if isinstance(resp, dict) and 'choices' in resp:
+                choices = resp['choices']
+                if isinstance(choices, list) and choices:
+                    msg = choices[0].get('message')
+                    if isinstance(msg, dict):
+                        return msg.get('content', '')
+                    elif isinstance(msg, str):
+                        return msg
+            
+            # Handle string response directly
+            if isinstance(resp, str):
+                return resp
+                
+            # Handle iterable response (streaming)
+            if hasattr(resp, '__iter__') and not isinstance(resp, dict) and not isinstance(resp, str):
+                try:
+                    return ''.join([getattr(chunk, 'content', str(chunk)) for chunk in resp if chunk])
+                except Exception:
+                    return str(list(resp))
+            
+            # Fallback
+            return str(resp)
+        except Exception as e:
+            print(f"Error extracting content: {e}")
+            return "I apologize, but I encountered an error processing your request. Please try again."
+
+    reply = extract_content(response)
+    if not isinstance(reply, str):
+        reply = str(reply)
+    reply = reply.strip()
+    
+    # Ensure we have a valid response
+    if not reply:
+        reply = "I apologize, but I didn't receive a proper response. Please try again."
 
     # Add reminder context to response if reminder was attempted but failed
     if is_reminder_request and not reminder_result:

@@ -19,6 +19,7 @@ const STORAGE_KEYS = {
   SESSION_COUNTER: 'sessionCounter'
 };
 
+
 // For future database implementation:
 // const API_ENDPOINTS = {
 //   GET_SESSIONS: '/api/chat/sessions',

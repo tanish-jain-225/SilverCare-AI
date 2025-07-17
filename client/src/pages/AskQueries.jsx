@@ -123,6 +123,8 @@ export function AskQueries() {
     }
   };
 
+  
+
   /**
    * Delete a chat session from storage
    * @param {string} sessionId - ID of session to delete
@@ -248,6 +250,7 @@ export function AskQueries() {
   useEffect(() => {
     if (user?.id && !isInitialWelcomePlaying && messages.length === 0 && !currentSessionId && chatSessions.length === 0) {
       setIsInitialWelcomePlaying(true);
+      setInputDisabled(true); // Disable inputs before speaking
       // Speak welcome message only when page loads with no existing session and no saved sessions
       speak("Welcome to AI Assistant", {
         onended: () => {
@@ -295,7 +298,7 @@ export function AskQueries() {
         // Small delay to ensure UI updates before message appears
         setTimeout(() => {
           setMessages([welcomeMessage]);
-          setInputDisabled(false);
+          setInputDisabled(true); // Disable inputs before speaking
           
           // Start speaking the welcome message
           speak(welcomeMessageText, {
@@ -420,7 +423,7 @@ export function AskQueries() {
         };
         
         setMessages((prev) => [...prev, welcomeMessage]);
-        setInputDisabled(false);
+        setInputDisabled(true); // Disable inputs before speaking
         
         // Start speaking the welcome message with error handling
         speak(welcomeMessageText, {
@@ -579,6 +582,12 @@ export function AskQueries() {
     const messageToSend = message || inputMessage.trim();
     if (!messageToSend || !user?.id || isLoading || isTransitioning) return;
     
+    // Don't send message if AI is speaking
+    if (isSpeaking || inputDisabled) {
+      console.log('Message sending blocked while AI is speaking');
+      return;
+    }
+    
     setError(null);
     setLastUserActivity(Date.now());
 
@@ -594,9 +603,6 @@ export function AskQueries() {
     setIsLoading(true);
 
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-
       const response = await fetch(`${route_endpoint}/chat/message`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -604,10 +610,7 @@ export function AskQueries() {
           input: messageToSend,
           userId: user.id,
         }),
-        signal: controller.signal
       });
-
-      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`Server error: ${response.status} ${response.statusText}`);
@@ -672,9 +675,18 @@ export function AskQueries() {
 
       // Only speak the AI response if no emergency was handled (emergency has its own speech)
       if (!emergencyHandled) {
-        // Disable inputs while speaking but keep pause button available
+        // If the backend ever returns a raw LLM object, extract the assistant's reply content
+        if (typeof aiResponseMessage === 'object' && aiResponseMessage !== null) {
+          // Try to extract from choices[0].message.content
+          if (aiResponseMessage.choices && Array.isArray(aiResponseMessage.choices) && aiResponseMessage.choices.length > 0) {
+            const msgObj = aiResponseMessage.choices[0].message;
+            if (msgObj && typeof msgObj.content === 'string') {
+              aiResponseMessage = msgObj.content;
+            }
+          }
+        }
         setInputDisabled(true);
-        speak(aiMessage.message, {
+        speak(aiResponseMessage, {
           onended: () => {
             setInputDisabled(false); // Re-enable inputs after speech ends
           },
@@ -696,12 +708,12 @@ export function AskQueries() {
       
       let errorMessage = "Unable to connect to the server. Please check your internet connection and try again.";
       
-      if (error.name === 'AbortError') {
-        errorMessage = "Request timed out. Please try again.";
-      } else if (error.message.includes('Server error: 5')) {
+      if (error.message && error.message.includes('Server error: 5')) {
         errorMessage = "Server is temporarily unavailable. Please try again in a moment.";
-      } else if (error.message.includes('Failed to fetch')) {
+      } else if (error.message && error.message.includes('Failed to fetch')) {
         errorMessage = "Network error. Please check your internet connection.";
+      } else if (error.message && error.message.includes('NetworkError')) {
+        errorMessage = "Network connection failed. Please check your internet and try again.";
       }
       
       setError(errorMessage);
@@ -721,6 +733,12 @@ export function AskQueries() {
 
   const handleVoiceInput = (text) => {
     if (!text || !text.trim()) return;
+    
+    // Don't process voice input if AI is speaking
+    if (isSpeaking || inputDisabled) {
+      console.log('Voice input blocked while AI is speaking');
+      return;
+    }
     
     setLastUserActivity(Date.now());
     
@@ -898,7 +916,7 @@ export function AskQueries() {
                 onResult={handleVoiceInput}
                 size="lg"
                 className="!w-10 !h-10 sm:!w-12 sm:!h-12 rounded-full bg-primary-200 dark:bg-primary-200/80 shadow-md flex items-center justify-center dark:hover:bg-blue-700 [&>svg]:scale-75 sm:[&>svg]:scale-100 disabled:opacity-50 transition-all duration-200"
-                disabled={isLoading || inputDisabled || (messages.length === 0 && chatSessions.length === 0) || isHistoryOpen || isTransitioning}
+                disabled={isLoading || inputDisabled || isSpeaking || (messages.length === 0 && chatSessions.length === 0) || isHistoryOpen || isTransitioning}
               />
               <input
                 type="text"
@@ -918,7 +936,7 @@ export function AskQueries() {
                     setInputMessage("");
                   }
                 }}
-                disabled={isLoading || inputDisabled || (messages.length === 0 && chatSessions.length === 0) || isHistoryOpen || isTransitioning}
+                disabled={isLoading || inputDisabled || isSpeaking || (messages.length === 0 && chatSessions.length === 0) || isHistoryOpen || isTransitioning}
                 maxLength={1000}
                 autoComplete="off"
                 spellCheck="true"
@@ -938,7 +956,7 @@ export function AskQueries() {
               ) : (
                 <button
                   onClick={() => handleSendMessage()}
-                  disabled={isLoading || inputDisabled || (messages.length === 0 && chatSessions.length === 0) || isHistoryOpen || isTransitioning || !inputMessage.trim()}
+                  disabled={isLoading || inputDisabled || isSpeaking || (messages.length === 0 && chatSessions.length === 0) || isHistoryOpen || isTransitioning || !inputMessage.trim()}
                   className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-primary-200 hover:bg-primary-300 dark:bg-primary-200 dark:hover:bg-blue-700 text-white dark:text-white border border-primary-100/30 dark:border-blue-700/40 shadow-md flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 ${isLoading ? 'animate-pulse' : ''}`}
                   aria-label="Send Message"
                   type="button"

@@ -15,12 +15,9 @@ export const useLocation = () => {
     }, []);
 
     useEffect(() => {
-        let watchId = null;
-        let fallbackTimeout = null;
-        
         if ('geolocation' in navigator) {
-            // First try with high accuracy
-            watchId = navigator.geolocation.watchPosition(
+            // Single location fetch with standard accuracy
+            navigator.geolocation.getCurrentPosition(
                 (position) => {
                     const coords = position.coords;
                     setLocation({
@@ -38,77 +35,30 @@ export const useLocation = () => {
                     });
                     setLoading(false);
                     setError(null);
-                    
-                    // Clear fallback timeout if we got a position
-                    if (fallbackTimeout) {
-                        clearTimeout(fallbackTimeout);
-                        fallbackTimeout = null;
-                    }
                 },
                 (error) => {
-                    console.error('High accuracy location error:', error);
-                    
-                    // If high accuracy fails, try with lower accuracy as fallback
-                    fallbackTimeout = setTimeout(() => {
-                        navigator.geolocation.getCurrentPosition(
-                            (position) => {
-                                const coords = position.coords;
-                                setLocation({
-                                    lat: coords.latitude,
-                                    lng: coords.longitude,
-                                });
-                                setAccuracy(coords.accuracy);
-                                setLocationDetails({
-                                    accuracy: coords.accuracy,
-                                    altitude: coords.altitude,
-                                    altitudeAccuracy: coords.altitudeAccuracy,
-                                    heading: coords.heading,
-                                    speed: coords.speed,
-                                    timestamp: position.timestamp
-                                });
-                                setLoading(false);
-                                setError(null);
-                            },
-                            (fallbackError) => {
-                                let friendlyError = fallbackError;
-                                if (fallbackError.code === 1) {
-                                    friendlyError = new Error('Location permission denied. Please allow location access.');
-                                } else if (fallbackError.code === 2) {
-                                    friendlyError = new Error('Location unavailable. Please check your device settings.');
-                                } else if (fallbackError.code === 3) {
-                                    friendlyError = new Error('Location request timed out. Please try refreshing or check your connection.');
-                                }
-                                console.error('Fallback location error:', fallbackError);
-                                setError(friendlyError);
-                                setLoading(false);
-                            },
-                            {
-                                enableHighAccuracy: false, // Lower accuracy for fallback
-                                timeout: 10000,
-                                maximumAge: 60000, // Allow older cached position
-                            }
-                        );
-                    }, 2000); // Wait 2 seconds before trying fallback
+                    let friendlyError = error;
+                    if (error.code === 1) {
+                        friendlyError = new Error('Location permission denied. Please allow location access.');
+                    } else if (error.code === 2) {
+                        friendlyError = new Error('Location unavailable. Please check your device settings.');
+                    } else if (error.code === 3) {
+                        friendlyError = new Error('Location request timed out. Please try again.');
+                    }
+                    console.error('Location error:', error);
+                    setError(friendlyError);
+                    setLoading(false);
                 },
                 {
-                    enableHighAccuracy: true,
-                    timeout: 15000, // Reduced timeout to 15 seconds
-                    maximumAge: 30000, // Allow cached position up to 30 seconds old
+                    enableHighAccuracy: false, // Standard accuracy for simplicity
+                    timeout: 10000, // 10 second timeout
+                    maximumAge: 300000, // Allow cached position up to 5 minutes old
                 }
             );
         } else {
             setError(new Error('Geolocation is not supported by this browser.'));
             setLoading(false);
         }
-
-        return () => {
-            if (watchId) {
-                navigator.geolocation.clearWatch(watchId);
-            }
-            if (fallbackTimeout) {
-                clearTimeout(fallbackTimeout);
-            }
-        };
     }, [refreshTrigger]);
 
     return { location, loading, error, accuracy, locationDetails, refreshLocation };
