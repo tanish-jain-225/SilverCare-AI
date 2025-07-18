@@ -287,7 +287,7 @@ export function AskQueries() {
       if (user?.id) {
         // Get user's name from signin info (fullName, firstName, or email)
         const userName = user?.name || user.firstName || user.displayName || user.email?.split('@')[0] || 'there';
-        const welcomeMessageText = `Welcome ${userName}, How can I assist you today?`;
+        const welcomeMessageText = `Welcome, How can I assist you today?`;
         const welcomeMessage = {
           id: `welcome_${Date.now()}`,
           message: welcomeMessageText,
@@ -414,7 +414,7 @@ export function AskQueries() {
       if (user?.id) {
         // Get user's name from signin info (fullName, firstName, or email)
         const userName = user?.name || user.firstName || user.displayName || user.email?.split('@')[0] || 'there';
-        const welcomeMessageText = `Welcome ${userName}, How can I assist you today?`;
+        const welcomeMessageText = `Welcome, How can I assist you today?`;
         const welcomeMessage = {
           id: `welcome_${Date.now()}`,
           message: welcomeMessageText,
@@ -806,6 +806,14 @@ export function AskQueries() {
       .trim();
   };
 
+
+  // Auto-close history panel if chatSessions becomes empty
+  useEffect(() => {
+    if (chatSessions.length === 0 && isHistoryOpen) {
+      setIsHistoryOpen(false);
+    }
+  }, [chatSessions.length, isHistoryOpen]);
+
   // Auto-clear errors after 10 seconds
   useEffect(() => {
     if (error) {
@@ -835,9 +843,10 @@ export function AskQueries() {
           <div className="flex items-center justify-between gap-2 p-2">
             <button
               onClick={toggleHistory}
-              className="flex items-center justify-center p-2 rounded-lg bg-primary-100/20 hover:bg-primary-100/30 dark:bg-primary-200/20 dark:hover:bg-primary-200/30 transition-colors duration-200 group"
+              className={`flex items-center justify-center p-2 rounded-lg bg-primary-100/20 hover:bg-primary-100/30 dark:bg-primary-200/20 dark:hover:bg-primary-200/30 transition-colors duration-200 group
+                ${isHistoryOpen || chatSessions.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
               title="Chat History"
-              disabled={isHistoryOpen}
+              disabled={isHistoryOpen || chatSessions.length === 0}
             >
               <History className="w-5 h-5 text-primary-200 dark:text-primary-100 group-hover:scale-110 transition-transform duration-200" />
             </button>

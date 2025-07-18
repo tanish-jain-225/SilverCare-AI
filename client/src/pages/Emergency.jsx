@@ -355,7 +355,6 @@ export default function Emergency() {
                   <button
                     className="text-md font-bold text-white  transition-colors duration-200 bg-blue-600 hover:bg-blue-700 py-2 px-4 rounded-lg"
                     onClick={() => {
-                      speak("Refreshing page...");
                       window.location.reload();
                     }}
                   >

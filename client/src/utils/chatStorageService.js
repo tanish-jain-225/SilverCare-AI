@@ -11,7 +11,8 @@
  * 4. Add proper error handling for network requests
  */
 
-// ================== STORAGE CONFIGURATION ==================
+// ================== STORAGE CONFIGURATION ================== 
+// This section defines the keys used for localStorage operations.
 
 const STORAGE_KEYS = {
   CHAT_SESSIONS: 'chatSessions',
