@@ -7,7 +7,7 @@ import requests
 blog_fetch_bp = Blueprint('blog_fetch', __name__)
 
 # Get API keys from environment variables
-API_KEY = os.getenv('VITE_WORLD_NEWS_API_KEY3') or os.getenv('VITE_WORLD_NEWS_API_KEY2') or os.getenv('VITE_WORLD_NEWS_API_KEY1')
+API_KEY = os.getenv('WORLD_NEWS_API_KEY1') or os.getenv('WORLD_NEWS_API_KEY2') or os.getenv('WORLD_NEWS_API_KEY3')
 
 @blog_fetch_bp.route('/fetch-news', methods=['GET', 'POST', 'OPTIONS'])
 @cross_origin()

@@ -15,8 +15,8 @@ export function BottomNavigation() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white/20 dark:bg-dark-50/20 backdrop-blur-lg backdrop-saturate-150 border-t border-white/20 dark:border-white/10 shadow-lg z-40 m-0 p-1 xs:p-2 sm:p-2 md:p-3">
-      <div className="flex justify-between items-center mx-auto w-full px-1 xs:px-2 sm:px-3 md:px-4 py-0 m-0">
+    <nav className="fixed bottom-0 w-full bg-white/20 dark:bg-dark-50/20 backdrop-blur-lg backdrop-saturate-150 z-40 p-1">
+      <div className="flex justify-between items-center mx-auto w-full p-1">
         {navItems.map(({ icon: Icon, label, path }) => {
           const isActive = location.pathname === path;
           return (
