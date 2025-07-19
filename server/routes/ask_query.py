@@ -1,3 +1,4 @@
+# ================== IMPORTS & GLOBALS ==================
 from flask import Blueprint, request, jsonify
 from together import Together
 from dotenv import load_dotenv
@@ -5,29 +6,31 @@ from textblob import TextBlob
 from bson import ObjectId
 from pymongo import MongoClient
 from datetime import datetime, timedelta
+
 from routes.format_reminder import save_to_mongodb
 from routes.utils.ai_utils import analyze_emergency_intent, analyze_reminder_intent
 
 import json as pyjson
 
 import os
+import re
+
+# Load environment variables
+load_dotenv()
 
 # MongoDB setup (adjust as needed)
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("DB_NAME")
 COLLECTION_NAME = os.getenv("CHAT_SESSIONS_COLLECTION")
-client = MongoClient(MONGO_URI)
-db = client[DB_NAME]
+mongo_client = MongoClient(MONGO_URI)
+db = mongo_client[DB_NAME]
 chat_sessions_col = db[COLLECTION_NAME]
-
-# Load environment variables
-load_dotenv()
 
 # LLM API key setup
 api_key = os.getenv("TOGETHER_API_KEY")
+llm_client = Together(api_key=api_key)
 
-client = Together(api_key=api_key)
-
+# Chat blueprint 
 chat_bp = Blueprint('chat', __name__)
 
 
@@ -44,8 +47,6 @@ def smart_date_time_context(mode, *args, **kwargs):
     mode: 'context', 'default_date', 'default_time', 'validate_date', 'validate_time'
     args: depends on mode
     """
-    from datetime import datetime, timedelta
-    import re
     now = datetime.now()
 
     def context():
@@ -393,9 +394,6 @@ def setup_reminder(user_input, user_id):
     """
     Process reminder creation, formatting, and saving. Returns result dict or error.
     """
-    from together import Together
-    import os
-    import json as pyjson
     try:
         together_api_key = os.getenv('TOGETHER_API_KEY')
         reminder_client = Together(api_key=together_api_key)
@@ -456,7 +454,6 @@ CRITICAL: Never return null/empty dates or times. Always infer using context and
         content = extract_content(response)
         if not isinstance(content, str):
             content = str(content)
-        import re
         if not isinstance(content, str):
             content = str(content)
         array_match = re.search(
@@ -726,7 +723,7 @@ def send_message():
     # Add the current user message
     messages.append({"role": "user", "content": user_message})
 
-    response = client.chat.completions.create(
+    response = llm_client.chat.completions.create(
         model="deepseek-ai/DeepSeek-V3",
         messages=messages
     )
