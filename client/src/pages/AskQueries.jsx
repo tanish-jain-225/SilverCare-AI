@@ -656,7 +656,6 @@ export function AskQueries() {
 
     // Don't send message if AI is speaking
     if (isSpeaking || inputDisabled) {
-      console.log("Message sending blocked while AI is speaking");
       return;
     }
 
@@ -839,7 +838,6 @@ export function AskQueries() {
 
     // Don't process voice input if AI is speaking
     if (isSpeaking || inputDisabled) {
-      console.log("Voice input blocked while AI is speaking");
       return;
     }
 

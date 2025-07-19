@@ -9,6 +9,10 @@ saved_contacts_bp = Blueprint('saved_contacts', __name__)
 MONGO_URI = os.environ.get('MONGO_URI')
 db_name = os.environ.get('DB_NAME')
 saved_contacts_collection_name = os.environ.get('SAVED_CONTACTS_COLLECTION')
+
+if MONGO_URI is None or db_name is None or saved_contacts_collection_name is None:
+    raise RuntimeError("Missing required environment variables for MongoDB connection.")
+
 client = MongoClient(MONGO_URI)
 db = client[db_name]
 collection = db[saved_contacts_collection_name]
@@ -31,14 +35,14 @@ def add_contact():
     if not user_id:
         return jsonify({'error': 'Missing user_id'}), 400
     data = request.json
-    if not data.get('name') or not data.get('phone'):
+    if not data or not data.get('name') or not data.get('phone'):
         return jsonify({'error': 'Missing name or phone'}), 400
     contact = {
         'user_id': user_id,
-        'id': data.get('id'),
-        'name': data.get('name'),
-        'phone': data.get('phone'),
-        'relationship': data.get('relationship', 'Custom')
+        'id': data.get('id') if data else None,
+        'name': data.get('name') if data else None,
+        'phone': data.get('phone') if data else None,
+        'relationship': data.get('relationship', 'Custom') if data else 'Custom'
     }
     collection.insert_one(contact)
     contact.pop('_id', None)

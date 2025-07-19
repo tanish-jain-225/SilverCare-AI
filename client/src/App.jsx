@@ -23,6 +23,7 @@ import { BottomNavigation } from "./components/layout/BottomNavigation";
 import ErrorBoundary from "./components/ErrorBoundary";
 import LoadingScreen from "./components/LoadingScreen";
 import ScrollToTop from "./components/ScrollToTop";
+import PreventBackNavigation from "./components/PreventBackNavigation";
 
 // ProtectedRoute component - defined outside to ensure proper context access
 function ProtectedRoute({ children }) {
@@ -166,6 +167,7 @@ export default function App() {
             v7_relativeSplatPath: true,
           }}
         >
+          <PreventBackNavigation />
           <AppProvider>
             <AppRoutes />
           </AppProvider>

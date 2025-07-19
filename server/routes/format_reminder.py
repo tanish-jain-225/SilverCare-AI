@@ -60,10 +60,14 @@ together_api_key = os.environ.get('TOGETHER_API_KEY')
 client = Together(api_key=together_api_key)
 
 # Initialize MongoDB client
-if mongo_url:
+if mongo_url and db_name and reminders_collection_name:
     mongo_client = MongoClient(mongo_url)
-    db = mongo_client[db_name] 
+    db = mongo_client[db_name]
     reminders_collection = db[reminders_collection_name]
+else:
+    mongo_client = None
+    db = None
+    reminders_collection = None
 
 def get_dynamic_date_context_for_reminder():
     """
@@ -208,7 +212,6 @@ def process_reminders(reminders_list, user_id):
             results.append(saved_reminder)
         except Exception as e:
             error_msg = f"Error processing reminder: {str(e)}"
-            print(error_msg)
             errors.append(error_msg)
     if not results:
         return jsonify({"error": "No valid reminders found", "details": errors}), 400
@@ -228,11 +231,10 @@ def format_reminder():
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
         response.headers.add('Access-Control-Allow-Methods', 'POST')
         return response
-        
-    print("POST /format-reminder endpoint called")
-    print(f"Request data: {request.json}")
     
     # Important - ensure we have a JSON body with 'input' field and userId
+    if not request.json:
+        return jsonify({"error": "No input provided. Please send JSON with 'input' and 'userId' fields."}), 400
     user_input = request.json.get('input', '')
     user_id = request.json.get('userId')
     # Ensure we have input to process
@@ -240,7 +242,9 @@ def format_reminder():
         return jsonify({"error": "No input provided. Please send JSON with 'input' field."}), 400
     if not user_id:
         return jsonify({"error": "No userId provided. Please send JSON with 'userId' field."}), 400
-        
+    if reminders_collection is None:
+        return jsonify({"error": "Reminders collection is not initialized due to missing environment variables."}), 500
+    
     # Instruct the LLM to format the input as a reminder with intelligent date/time handling
     date_context = get_dynamic_date_context_for_reminder()
     
@@ -275,14 +279,31 @@ Examples using context:
             }
         ]
     )
-    
-    content = response.choices[0].message.content
+    # Robustly extract content from LLM response
+    content = None
+    # If response is an iterator, convert to list and extract first element
+    if hasattr(response, '__iter__') and not hasattr(response, 'choices') and not isinstance(response, (str, bytes, dict)):
+        response = list(response)
+        if response:
+            response = response[0]
+    # If response is a tuple, extract first element
+    if isinstance(response, tuple):
+        response = response[0]
+    # Now, try to get content safely
+    choices = getattr(response, 'choices', None)
+    if choices and isinstance(choices, list) and len(choices) > 0:
+        first_choice = choices[0]
+        message = getattr(first_choice, 'message', None)
+        if message and hasattr(message, 'content'):
+            content = message.content
+    if not isinstance(content, str):
+        return jsonify({"error": "No valid content returned from LLM."}), 500
     print(f"LLM Response: {content}")
     
     # Try to extract an array first - handle markdown code blocks.
     try:
         # Look for JSON array in markdown code block or regular text
-        array_match = re.search(r'```(?:json)?\s*(\[[\s\S]*?\])\s*```|(\[[\s\S]*?\])', content)
+        array_match = re.search(r'```(?:json)?\s*(\[[\s\S]*?\])\s*```|(\[[\s\S]*?\])', content) if isinstance(content, str) else None
         if array_match:
             # Get the first matching group that's not None
             array_text = next(group for group in array_match.groups() if group is not None)
@@ -302,7 +323,7 @@ Examples using context:
         print(f"Error extracting array: {str(e)}")
     
     # If not an array, extract a single JSON object - handle markdown code blocks
-    match = re.search(r'```(?:json)?\s*(\{[\s\S]*?\})\s*```|(\{[\s\S]*?\})', content)
+    match = re.search(r'```(?:json)?\s*(\{[\s\S]*?\})\s*```|(\{[\s\S]*?\})', content) if isinstance(content, str) else None
     if match:
         try:
             # Get the first matching group that's not None
@@ -328,6 +349,8 @@ Examples using context:
 
 def save_to_mongodb(reminder):
     """Save a reminder to MongoDB"""
+    if reminders_collection is None:
+        raise RuntimeError("Reminders collection is not initialized.")
     reminder_to_save = reminder.copy()
     now = datetime.now()
     reminder_to_save['created_at'] = now
@@ -336,7 +359,8 @@ def save_to_mongodb(reminder):
     inserted_id = result.inserted_id
     print(f"Saved reminder to MongoDB with _id: {inserted_id}")
     json_safe_reminder = convert_to_json_friendly(reminder_to_save)
-    json_safe_reminder['id'] = str(inserted_id)
+    if isinstance(json_safe_reminder, dict):
+        json_safe_reminder['id'] = str(inserted_id)
     return json_safe_reminder
 
 @format_reminder_bp.route('/reminders', methods=['GET'])
@@ -344,6 +368,8 @@ def get_reminders():
     user_id = request.args.get("userId")
     if not user_id:
         return jsonify({"error": "userId is required"}), 400
+    if reminders_collection is None:
+        return jsonify({"error": "Reminders collection is not initialized due to missing environment variables."}), 500
     try:
         cursor = reminders_collection.find({"userId": user_id})
         reminders_list = list(cursor)
@@ -375,6 +401,8 @@ def get_reminders():
 
 @format_reminder_bp.route('/reminders/<reminder_id>', methods=['GET'])
 def get_reminder_by_id(reminder_id):
+    if reminders_collection is None:
+        return jsonify({"error": "Reminders collection is not initialized due to missing environment variables."}), 500
     try:
         reminder = None
         if ObjectId.is_valid(reminder_id):
@@ -395,7 +423,6 @@ def save_reminder_data():
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
         response.headers.add('Access-Control-Allow-Methods', 'POST')
         return response
-    print("POST /reminder-data endpoint called")
     reminder_data = request.json
     if not reminder_data:
         return jsonify({"error": "No reminder data provided"}), 400
@@ -427,10 +454,12 @@ def save_reminder_data():
 def delete_reminder():
     try:
         data = request.json
-        reminder_id = data.get("id")
-        user_id = data.get("userId")
+        reminder_id = data.get("id") if data else None
+        user_id = data.get("userId") if data else None
         if not reminder_id or not user_id:
             return jsonify({"error": "Both id and userId are required"}), 400
+        if reminders_collection is None:
+            return jsonify({"error": "Reminders collection is not initialized due to missing environment variables."}), 500
         result = reminders_collection.delete_one({"_id": ObjectId(reminder_id), "userId": user_id})
         if result.deleted_count == 0:
             return jsonify({"error": f"Reminder with ID {reminder_id} and userId {user_id} not found"}), 404

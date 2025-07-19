@@ -15,23 +15,23 @@
 
 ## Overview
 
-SilverCare-AI is a full-stack, voice-first AI assistant designed for senior citizens. It bridges the digital divide by making technology accessible, intuitive and empowering for older adults. With step-by-step onboarding, voice-enabled chat, smart reminders, emergency alerts and a beautiful, accessible UI, SilverCare-AI is more than a tool—it's a companion for independent living.
+SilverCare-AI is a full-stack, voice-first AI assistant designed for senior citizens. It bridges the digital divide by making technology accessible, intuitive, and empowering for older adults. With step-by-step onboarding, voice-enabled chat, smart reminders, emergency alerts, and a beautiful, accessible UI, SilverCare-AI is more than a tool—it's a companion for independent living.
 
 ---
 
 ## Screenshots
 
 <p align="center">
-  <img src="client/public/screenshots/home-page.png" alt="Home Page - Mobile" width="220" style="margin:10px; border-radius:12px; box-shadow:0 2px 8px #ccc;" />
-  <img src="client/public/screenshots/voice-assistant-page.png" alt="Voice Assistant - Mobile" width="220" style="margin:10px; border-radius:12px; box-shadow:0 2px 8px #ccc;" />
-  <img src="client/public/screenshots/reminders-page.png" alt="Reminders - Mobile" width="220" style="margin:10px; border-radius:12px; box-shadow:0 2px 8px #ccc;" />
-  <img src="client/public/screenshots/blog-page-1.jpg" alt="Blog - Mobile" width="220" style="margin:10px; border-radius:12px; box-shadow:0 2px 8px #ccc;" />
-  <img src="client/public/screenshots/blog-page-2.jpg" alt="Blog - Mobile" width="220" style="margin:10px; border-radius:12px; box-shadow:0 2px 8px #ccc;" />
-  <img src="client/public/screenshots/profile-page.png" alt="Profile - Mobile" width="220" style="margin:10px; border-radius:12px; box-shadow:0 2px 8px #ccc;" />
-  <img src="client/public/screenshots/emergency-page.png" alt="Emergency - Mobile" width="220" style="margin:10px; border-radius:12px; box-shadow:0 2px 8px #ccc;" />
+  <img src="client/public/screenshots/home-page.png" alt="Home Page - Mobile" width="220" />
+  <img src="client/public/screenshots/voice-assistant-page.png" alt="Voice Assistant - Mobile" width="220" />
+  <img src="client/public/screenshots/reminders-page.png" alt="Reminders - Mobile" width="220" />
+  <img src="client/public/screenshots/blog-page-1.jpg" alt="Blog - Mobile" width="220" />
+  <img src="client/public/screenshots/blog-page-2.jpg" alt="Blog - Mobile" width="220" />
+  <img src="client/public/screenshots/profile-page.png" alt="Profile - Mobile" width="220" />
+  <img src="client/public/screenshots/emergency-page.png" alt="Emergency - Mobile" width="220" />
 </p>
 
-> **Note:** All screenshots above showcase the mobile-first, accessible design of SilverCare-AI. For best results, view on a mobile device or resize your browser window.
+> **Note:** All screenshots showcase the mobile-first, accessible design of SilverCare-AI. For best results, view on a mobile device or resize your browser window.
 
 ---
 
@@ -39,16 +39,16 @@ SilverCare-AI is a full-stack, voice-first AI assistant designed for senior citi
 
 ### Frontend
 
-- **React + Vite**: Fast, modern and modular UI development.
-- **Tailwind CSS**: Utility-first, accessible and responsive styling.
+- **React + Vite**: Fast, modern, and modular UI development.
+- **Tailwind CSS**: Utility-first, accessible, and responsive styling.
 - **React Context & Hooks**: State management and custom logic.
 - **Speech Recognition & Synthesis APIs**: Voice input/output everywhere.
 - **Firebase Auth**: Secure authentication and user management.
 
 ### Backend
 
-- **Python (Flask)**: REST API for chat, reminders, onboarding and emergency features.
-- **Firebase Firestore**: User data, reminders and profile storage.
+- **Python (Flask)**: REST API for chat, reminders, onboarding, and emergency features.
+- **Firebase Firestore**: User data, reminders, and profile storage.
 - **MongoDB**: Emergency contacts storage and reminders.
 - **Vercel**: Serverless deployment for both frontend and backend.
 
@@ -58,10 +58,10 @@ SilverCare-AI is a full-stack, voice-first AI assistant designed for senior citi
 
 - **Step-by-Step Onboarding**: Voice-enabled, mobile-friendly form with validation and accessibility.
 - **Voice-First Chat**: Ask anything, set reminders, or get help—just speak!
-- **Smart Reminders**: Create, view and get notified about reminders. Unique alarms, no duplicates and reliable scheduling.
+- **Smart Reminders**: Create, view, and get notified about reminders. Unique alarms, no duplicates, and reliable scheduling.
 - **Emergency Alerts**: Instantly send emergency alerts and manage emergency contacts.
 - **Blog/News Section**: Fetches news using World News API (API key required).
-- **Accessibility**: High-contrast, large touch targets, voice feedback and screen reader support.
+- **Accessibility**: High-contrast, large touch targets, voice feedback, and screen reader support.
 - **Mobile-First Design**: Fully responsive and touch-friendly.
 - **Personalization**: Learns and adapts to user interests and needs.
 
@@ -69,7 +69,7 @@ SilverCare-AI is a full-stack, voice-first AI assistant designed for senior citi
 
 ## Accessibility & Onboarding
 
-- **Accessible by Design**: Every page and component is built for seniors—clear labels, voice feedback and easy navigation.
+- **Accessible by Design**: Every page and component is built for seniors—clear labels, voice feedback, and easy navigation.
 - **Voice Input Everywhere**: All forms and chat fields support voice input, with clear buttons and feedback.
 - **Step Progress**: Onboarding shows clear progress and prevents skipping required steps.
 - **Screen Reader Friendly**: Uses semantic HTML and ARIA where needed.
@@ -81,11 +81,22 @@ SilverCare-AI is a full-stack, voice-first AI assistant designed for senior citi
 - All API keys and credentials are stored in `.env` files (never hardcoded).
 - Firestore rules restrict access to authenticated users where appropriate.
 - No user passwords are stored—uses Firebase Auth only.
-- All focus ring and focus state CSS have been removed for a cleaner UI.
-- Margins and layout are standardized to prevent extra scroll.
 - SEO meta tags are included in `index.html`.
 - Error handling and user feedback are improved throughout the app.
-- Filtered unused filetypes for optimised storage.
+
+---
+
+## Project Structure
+
+```
+SilverCare-AI/
+  ├── client/      # Frontend React app (Vite, Tailwind, Firebase)
+  ├── server/      # Backend Python API (Flask, MongoDB, Firestore)
+  └── Readme.md    # Project documentation
+```
+
+- **client/** — Frontend React app ([see client/Readme.md](client/Readme.md))
+- **server/** — Backend Python API ([see server/Readme.md](server/Readme.md))
 
 ---
 
@@ -101,14 +112,12 @@ SilverCare-AI is a full-stack, voice-first AI assistant designed for senior citi
 ### Installation
 
 1. **Clone the Repository**
-
    ```sh
    git clone <Repository-Link>
    cd <Repository-Name>
    ```
 
 2. **Install Client Dependencies**
-
    ```sh
    cd client
    npm install
@@ -117,7 +126,6 @@ SilverCare-AI is a full-stack, voice-first AI assistant designed for senior citi
    ```
 
 3. **Install Server Dependencies**
-
    ```sh
    cd ../server
    pip install -r requirements.txt
@@ -128,10 +136,11 @@ SilverCare-AI is a full-stack, voice-first AI assistant designed for senior citi
 - All API keys and credentials must be set in `.env` files in both `client/` and `server/` directories.
 - See `client/Readme.md` and `server/Readme.md` for example `.env` files and required variables.
 
-### Running the Application
+---
+
+## Running the Application Locally
 
 1. **Start the Backend (Flask Server)**
-
    ```sh
    cd server
    python app.py
@@ -139,7 +148,6 @@ SilverCare-AI is a full-stack, voice-first AI assistant designed for senior citi
    ```
 
 2. **Start the Frontend (Vite/React)**
-
    ```sh
    cd client
    npm run dev
@@ -152,12 +160,31 @@ SilverCare-AI is a full-stack, voice-first AI assistant designed for senior citi
 
 ---
 
-## Project Structure
+## Deployment
 
-- `client/` — Frontend React app ([see client/Readme.md](client/Readme.md))
-- `server/` — Backend Python API ([see server/Readme.md](server/Readme.md))
-- `public/` — Static assets (images, audio, etc.)
-- `index.html` — Main HTML entry point (SEO/meta tags)
+### Deploying on Vercel
+
+#### Frontend
+
+- The `client/` directory is ready for Vercel static hosting.
+- The `vercel.json` in `client/` ensures SPA routing works:
+  ```json
+  {
+    "version": 2,
+    "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  }
+  ```
+- Set the project root to `client/` in the Vercel dashboard or use the CLI.
+
+#### Backend
+
+- The `server/` directory is configured for Vercel Python serverless deployment.
+- Ensure the entrypoint in `server/vercel.json` matches your main Flask app (see [server/Readme.md](server/Readme.md) for details).
+- All dependencies are listed in `requirements.txt`.
+
+#### Environment Variables
+
+- Set all required environment variables in the Vercel dashboard for both frontend and backend.
 
 ---
 
@@ -190,7 +217,7 @@ We welcome contributions! To get started:
 
 ## Why SilverCare-AI?
 
-SilverCare-AI is more than a hackathon project—it's a mission to empower seniors with technology that truly understands and supports them. Our focus on accessibility, usability and real-world impact sets us apart. We believe every senior deserves a digital companion that is friendly, reliable and empowering.
+SilverCare-AI is more than a hackathon project—it's a mission to empower seniors with technology that truly understands and supports them. Our focus on accessibility, usability, and real-world impact sets us apart. We believe every senior deserves a digital companion that is friendly, reliable, and empowering.
 
 ---
 

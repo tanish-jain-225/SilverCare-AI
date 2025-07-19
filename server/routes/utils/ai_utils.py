@@ -60,7 +60,6 @@ def analyze_reminder_intent(text):
                     return str(list(resp))
             return str(resp)
         except Exception as e:
-            print(f"Error extracting reminder intent content: {e}")
             return ""
     content = extract_content(response)
     match = re.search(r'```(?:json)?\s*(\{[\s\S]*?\})\s*```|(\{[\s\S]*?\})', content)
@@ -127,7 +126,6 @@ def analyze_emergency_intent(text):
                     return str(list(resp))
             return str(resp)
         except Exception as e:
-            print(f"Error extracting emergency intent content: {e}")
             return ""
     content = extract_content(response)
     match = re.search(r'```(?:json)?\s*(\{[\s\S]*?\})\s*```|(\{[\s\S]*?\})', content)

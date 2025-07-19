@@ -22,9 +22,14 @@ load_dotenv()
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("DB_NAME")
 COLLECTION_NAME = os.getenv("CHAT_SESSIONS_COLLECTION")
+
+if MONGO_URI is None or DB_NAME is None or COLLECTION_NAME is None:
+    raise RuntimeError("Missing required environment variables for MongoDB connection.")
+
 mongo_client = MongoClient(MONGO_URI)
 db = mongo_client[DB_NAME]
 chat_sessions_col = db[COLLECTION_NAME]
+
 
 # LLM API key setup
 api_key = os.getenv("TOGETHER_API_KEY")
@@ -538,13 +543,15 @@ def load_chat_sessions():
 @chat_bp.route("/saveChat", methods=["PUT"])
 def save_chat_sessions():
     data = request.json
-    user_id = data.get("userId")
-    sessions = data.get("sessions", [])
+    user_id = data.get("userId") if data is not None else None
+    sessions = data.get("sessions", []) if data is not None else []
     # Remove all old sessions for this user
-    chat_sessions_col.delete_many({"userId": user_id})
+    if user_id is not None:
+        chat_sessions_col.delete_many({"userId": user_id})
     # Insert new sessions
     for session in sessions:
-        session["_id"] = ObjectId(session["id"]) if "id" in session else ObjectId()
+        session_id = session["id"] if session is not None and "id" in session and session["id"] is not None else None
+        session["_id"] = ObjectId(session_id) if session_id is not None else ObjectId()
         session["userId"] = user_id
         chat_sessions_col.replace_one({"_id": session["_id"]}, session, upsert=True)
     return jsonify({"success": True})
@@ -552,8 +559,8 @@ def save_chat_sessions():
 @chat_bp.route("/createChat", methods=["POST"])
 def create_chat_session():
     data = request.json
-    session_name = data.get("sessionName")
-    user_id = data.get("userId")
+    session_name = data.get("sessionName") if data is not None else None
+    user_id = data.get("userId") if data is not None else None
     session = {
         "name": session_name,
         "messages": [],
@@ -570,8 +577,8 @@ def create_chat_session():
 @chat_bp.route("/updateMessages/<session_id>/messages", methods=["PUT"])
 def update_session_messages(session_id):
     data = request.json
-    messages = data.get("messages", [])
-    user_id = data.get("userId")
+    messages = data.get("messages", []) if data is not None else []
+    user_id = data.get("userId") if data is not None else None
     result = chat_sessions_col.update_one(
         {"_id": ObjectId(session_id), "userId": user_id},
         {"$set": {
@@ -595,7 +602,7 @@ def delete_chat_session(session_id):
 @chat_bp.route("/updateActivity/<session_id>/activity", methods=["PATCH"])
 def update_session_activity(session_id):
     data = request.json
-    user_id = data.get("userId")
+    user_id = data.get("userId") if data is not None else None
     result = chat_sessions_col.update_one(
         {"_id": ObjectId(session_id), "userId": user_id},
         {"$set": {"lastActivity": datetime.utcnow().isoformat()}}
@@ -605,10 +612,10 @@ def update_session_activity(session_id):
 @chat_bp.route('/chat/message', methods=['POST'])
 def send_message():
     data = request.get_json()
-    user_message = data.get('input')
-    user_id = data.get('userId')
-    chat_history = data.get('chatHistory', [])  # Get chat history for context
-    session_id = data.get('sessionId', None)  # Get session ID for context
+    user_message = data.get('input') if data is not None else None
+    user_id = data.get('userId') if data is not None else None
+    chat_history = data.get('chatHistory', []) if data is not None else []  # Get chat history for context
+    session_id = data.get('sessionId', None) if data is not None else None  # Get session ID for context
     
     if not user_message or not user_id:
         return jsonify({"error": "No message provided"}), 400
@@ -640,8 +647,6 @@ def send_message():
     reminder_result = None
     # Lowered from 0.4 to 0.2 for more lenient detection
     if is_reminder_request and reminder_confidence > 0.2:
-        print(
-            f"Reminder detected with confidence {reminder_confidence}: {user_message}")
         print(f"Reminder components: {reminder_components}")
 
         # Call format reminder API
@@ -714,7 +719,7 @@ def send_message():
         
         for msg in recent_history:
             # Ensure the message has proper role and content
-            if msg.get('role') in ['user', 'assistant'] and msg.get('content'):
+            if msg is not None and isinstance(msg, dict) and msg.get('role') in ['user', 'assistant'] and msg.get('content'):
                 messages.append({
                     "role": msg['role'],
                     "content": msg['content']
