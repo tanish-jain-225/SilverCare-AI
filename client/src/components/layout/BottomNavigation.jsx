@@ -30,8 +30,7 @@ export function BottomNavigation() {
                 flex-1 max-w-[15%] xs:max-w-[16%] sm:max-w-none
                 rounded-xl xs:rounded-2xl 
                 transition-all duration-300 ease-out 
-                focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-transparent
-                transform hover:scale-105 active:scale-95
+                transform hover:scale-105
                 ${
                   isActive
                     ? `

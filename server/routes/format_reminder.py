@@ -19,6 +19,8 @@ load_dotenv()
 
 format_reminder_bp = Blueprint('format_reminder', __name__)
 # Custom JSON encoder to handle MongoDB ObjectId
+
+
 class MongoJSONEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, ObjectId):
@@ -26,14 +28,16 @@ class MongoJSONEncoder(json.JSONEncoder):
         elif isinstance(obj, datetime):
             return obj.isoformat()
         return super().default(obj)
-        
+
 # Helper function to convert MongoDB documents to JSON-friendly format
+
+
 def convert_to_json_friendly(document):
     if document is None:
         return None
     if isinstance(document, list):
         return [convert_to_json_friendly(item) for item in document]
-    
+
     result = {}
     for key, value in document.items():
         if key == '_id' and isinstance(value, ObjectId):
@@ -45,10 +49,12 @@ def convert_to_json_friendly(document):
         elif isinstance(value, dict):
             result[key] = convert_to_json_friendly(value)
         elif isinstance(value, list):
-            result[key] = [convert_to_json_friendly(item) if isinstance(item, dict) else item for item in value]
+            result[key] = [convert_to_json_friendly(item) if isinstance(
+                item, dict) else item for item in value]
         else:
             result[key] = value
     return result
+
 
 # Initialize MongoDB connection settings
 mongo_url = os.environ.get('MONGO_URI')
@@ -62,12 +68,13 @@ client = Together(api_key=together_api_key)
 # Initialize MongoDB client
 if mongo_url and db_name and reminders_collection_name:
     mongo_client = MongoClient(mongo_url)
-    db = mongo_client[db_name] 
+    db = mongo_client[db_name]
     reminders_collection = db[reminders_collection_name]
 else:
     mongo_client = None
     db = None
     reminders_collection = None
+
 
 def get_dynamic_date_context_for_reminder():
     """
@@ -77,7 +84,7 @@ def get_dynamic_date_context_for_reminder():
     today = now.strftime("%Y-%m-%d")
     tomorrow = (now + timedelta(days=1)).strftime("%Y-%m-%d")
     yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
-    
+
     # Get day names for the next 7 days
     days_ahead = {}
     for i in range(7):
@@ -85,11 +92,11 @@ def get_dynamic_date_context_for_reminder():
         day_name = future_date.strftime("%A").lower()
         date_str = future_date.strftime("%Y-%m-%d")
         days_ahead[day_name] = date_str
-    
+
     # Get current time info
     current_time = now.strftime("%H:%M")
     current_hour = now.hour
-    
+
     # Determine time of day
     if 5 <= current_hour < 12:
         time_of_day = "morning"
@@ -103,7 +110,7 @@ def get_dynamic_date_context_for_reminder():
     else:
         time_of_day = "night"
         suggested_time = "8:00 PM"
-    
+
     context = f"""
 CURRENT DATE & TIME CONTEXT (Use this for intelligent date/time inference):
 
@@ -122,18 +129,19 @@ Smart Defaults:
 - If no time specified: use {suggested_time} (current {time_of_day}) or 9:00 AM for medicine
 - Convert relative dates (today/tomorrow/Monday/etc.) to exact dates using the mapping above
 """
-    
+
     return context
+
 
 def get_smart_default_date_for_reminder(title):
     """Get intelligent default date based on reminder title"""
     now = datetime.now()
     title_lower = title.lower() if title else ""
-    
+
     # Medicine/health reminders - suggest tomorrow
     if any(word in title_lower for word in ['medicine', 'medication', 'pill', 'vitamin', 'drug', 'treatment']):
         return (now + timedelta(days=1)).strftime("%Y-%m-%d")
-    
+
     # Appointment/meeting - suggest next weekday
     if any(word in title_lower for word in ['appointment', 'meeting', 'doctor', 'dentist', 'visit']):
         days_ahead = 1
@@ -142,25 +150,26 @@ def get_smart_default_date_for_reminder(title):
             days_ahead += 1
             future_date = now + timedelta(days=days_ahead)
         return future_date.strftime("%Y-%m-%d")
-    
+
     # Evening tasks - suggest tomorrow
     if now.hour >= 18:
         return (now + timedelta(days=1)).strftime("%Y-%m-%d")
-    
+
     # Default to today
     return now.strftime("%Y-%m-%d")
+
 
 def get_smart_default_time_for_reminder(title):
     """Get intelligent default time based on reminder title"""
     now = datetime.now()
     title_lower = title.lower() if title else ""
-    
+
     # Medicine times
     if any(word in title_lower for word in ['medicine', 'medication', 'pill', 'vitamin']):
         if 'evening' in title_lower or 'night' in title_lower:
             return "8:00 PM"
         return "9:00 AM"
-    
+
     # Meal times
     if 'breakfast' in title_lower:
         return "8:00 AM"
@@ -168,15 +177,15 @@ def get_smart_default_time_for_reminder(title):
         return "12:00 PM"
     elif 'dinner' in title_lower:
         return "7:00 PM"
-    
+
     # Appointment times
     if any(word in title_lower for word in ['appointment', 'meeting', 'doctor', 'dentist']):
         return "10:00 AM"
-    
+
     # Exercise/workout
     if any(word in title_lower for word in ['workout', 'exercise', 'gym', 'walk', 'run']):
         return "7:00 AM"
-    
+
     # Based on current time of day
     current_hour = now.hour
     if 5 <= current_hour < 12:
@@ -188,6 +197,7 @@ def get_smart_default_time_for_reminder(title):
     else:
         return "8:00 PM"
 
+
 def process_reminders(reminders_list, user_id):
     """Process multiple reminders and save them to MongoDB with intelligent defaults"""
     results = []
@@ -196,18 +206,21 @@ def process_reminders(reminders_list, user_id):
         try:
             # Get title first for smart defaults
             title = reminder.get('title') or "New Reminder"
-            
+
             # Apply intelligent defaults
-            date = reminder.get('date') or get_smart_default_date_for_reminder(title)
-            time = reminder.get('time') or get_smart_default_time_for_reminder(title)
-            
+            date = reminder.get(
+                'date') or get_smart_default_date_for_reminder(title)
+            time = reminder.get(
+                'time') or get_smart_default_time_for_reminder(title)
+
             # Validate and format
             if not date or str(date).lower() in ['null', 'none', '']:
                 date = get_smart_default_date_for_reminder(title)
             if not time or str(time).lower() in ['null', 'none', '']:
                 time = get_smart_default_time_for_reminder(title)
-            
-            reminder_data = {"userId": user_id, "title": title, "date": date, "time": time}
+
+            reminder_data = {"userId": user_id,
+                             "title": title, "date": date, "time": time}
             saved_reminder = save_to_mongodb(reminder_data)
             results.append(saved_reminder)
         except Exception as e:
@@ -223,6 +236,7 @@ def process_reminders(reminders_list, user_id):
         "errors": errors if errors else None
     })
 
+
 @format_reminder_bp.route('/format-reminder', methods=['POST', 'OPTIONS'])
 def format_reminder():
     # Handle preflight OPTIONS request
@@ -232,10 +246,10 @@ def format_reminder():
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
         response.headers.add('Access-Control-Allow-Methods', 'POST')
         return response
-        
+
     print("POST /format-reminder endpoint called")
     print(f"Request data: {request.json}")
-    
+
     # Important - ensure we have a JSON body with 'input' field and userId
     if not request.json:
         return jsonify({"error": "No input provided. Please send JSON with 'input' and 'userId' fields."}), 400
@@ -248,10 +262,10 @@ def format_reminder():
         return jsonify({"error": "No userId provided. Please send JSON with 'userId' field."}), 400
     if reminders_collection is None:
         return jsonify({"error": "Reminders collection is not initialized due to missing environment variables."}), 500
-        
+
     # Instruct the LLM to format the input as a reminder with intelligent date/time handling
     date_context = get_dynamic_date_context_for_reminder()
-    
+
     enhanced_system_prompt = f"""You are an expert reminder creation assistant. Parse user input into structured reminders with intelligent date/time inference.
 
 {date_context}
@@ -269,7 +283,7 @@ Examples using context:
 - "remind me medicine" → [{{"title": "take medicine", "date": "{(datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')}", "time": "9:00 AM"}}]
 - "appointment tomorrow" → [{{"title": "appointment", "date": "{(datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')}", "time": "10:00 AM"}}]
 """
-    
+
     response = client.chat.completions.create(
         model="deepseek-ai/DeepSeek-V3",
         messages=[
@@ -303,14 +317,16 @@ Examples using context:
     if not isinstance(content, str):
         return jsonify({"error": "No valid content returned from LLM."}), 500
     print(f"LLM Response: {content}")
-    
+
     # Try to extract an array first - handle markdown code blocks.
     try:
         # Look for JSON array in markdown code block or regular text
-        array_match = re.search(r'```(?:json)?\s*(\[[\s\S]*?\])\s*```|(\[[\s\S]*?\])', content) if isinstance(content, str) else None
+        array_match = re.search(
+            r'```(?:json)?\s*(\[[\s\S]*?\])\s*```|(\[[\s\S]*?\])', content) if isinstance(content, str) else None
         if array_match:
             # Get the first matching group that's not None
-            array_text = next(group for group in array_match.groups() if group is not None)
+            array_text = next(
+                group for group in array_match.groups() if group is not None)
             reminders_array = pyjson.loads(array_text)
             if isinstance(reminders_array, list) and len(reminders_array) > 0:
                 # Apply intelligent defaults to all reminders in array
@@ -325,31 +341,35 @@ Examples using context:
                 return process_reminders(reminders_array, user_id)
     except Exception as e:
         print(f"Error extracting array: {str(e)}")
-    
+
     # If not an array, extract a single JSON object - handle markdown code blocks
-    match = re.search(r'```(?:json)?\s*(\{[\s\S]*?\})\s*```|(\{[\s\S]*?\})', content) if isinstance(content, str) else None
+    match = re.search(r'```(?:json)?\s*(\{[\s\S]*?\})\s*```|(\{[\s\S]*?\})',
+                      content) if isinstance(content, str) else None
     if match:
         try:
             # Get the first matching group that's not None
-            json_text = next(group for group in match.groups() if group is not None)
+            json_text = next(group for group in match.groups()
+                             if group is not None)
             reminder_json = pyjson.loads(json_text)
             # Apply intelligent defaults for single reminder
             title = reminder_json.get('title') or "New Reminder"
             date = reminder_json.get('date')
             time = reminder_json.get('time')
-            
+
             # Use smart defaults if missing or null
             if not date or str(date).lower() in ['null', 'none', '']:
                 date = get_smart_default_date_for_reminder(title)
             if not time or str(time).lower() in ['null', 'none', '']:
                 time = get_smart_default_time_for_reminder(title)
-            
-            post_data = {"userId": user_id, "title": title, "date": date, "time": time}
+
+            post_data = {"userId": user_id,
+                         "title": title, "date": date, "time": time}
             saved_reminder = save_to_mongodb(post_data)
             return jsonify({"success": True, "reminder": saved_reminder})
         except Exception as e:
             return jsonify({"error": "Failed to parse or post JSON", "details": str(e), "raw": content}), 400
     return jsonify({"error": "No JSON found in LLM response", "raw": content}), 400
+
 
 def save_to_mongodb(reminder):
     """Save a reminder to MongoDB"""
@@ -364,8 +384,9 @@ def save_to_mongodb(reminder):
     print(f"Saved reminder to MongoDB with _id: {inserted_id}")
     json_safe_reminder = convert_to_json_friendly(reminder_to_save)
     if isinstance(json_safe_reminder, dict):
-    json_safe_reminder['id'] = str(inserted_id)
+        json_safe_reminder['id'] = str(inserted_id)
     return json_safe_reminder
+
 
 @format_reminder_bp.route('/reminders', methods=['GET'])
 def get_reminders():
@@ -378,7 +399,7 @@ def get_reminders():
         cursor = reminders_collection.find({"userId": user_id})
         reminders_list = list(cursor)
         print(f"Found {len(reminders_list)} reminders for user {user_id}")
-        
+
         # Convert ObjectId to string and ensure all fields are properly formatted
         formatted_reminders = []
         for reminder in reminders_list:
@@ -392,16 +413,17 @@ def get_reminders():
                 "updated_at": reminder.get("updated_at", datetime.now()).isoformat()
             }
             formatted_reminders.append(formatted_reminder)
-        
+
         print(f"Formatted reminders: {formatted_reminders}")
         return jsonify({
-            "success": True, 
-            "reminders": formatted_reminders, 
+            "success": True,
+            "reminders": formatted_reminders,
             "count": len(formatted_reminders)
         })
     except Exception as e:
         print(f"Error in get_reminders: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
 
 @format_reminder_bp.route('/reminders/<reminder_id>', methods=['GET'])
 def get_reminder_by_id(reminder_id):
@@ -410,7 +432,8 @@ def get_reminder_by_id(reminder_id):
     try:
         reminder = None
         if ObjectId.is_valid(reminder_id):
-            reminder = reminders_collection.find_one({"_id": ObjectId(reminder_id)})
+            reminder = reminders_collection.find_one(
+                {"_id": ObjectId(reminder_id)})
         if not reminder:
             return jsonify({"error": f"Reminder with ID {reminder_id} not found"}), 404
         reminder = convert_to_json_friendly(reminder)
@@ -418,6 +441,7 @@ def get_reminder_by_id(reminder_id):
     except Exception as e:
         print(f"Error in get_reminder_by_id: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
 
 @format_reminder_bp.route('/reminder-data', methods=['POST', 'OPTIONS'])
 def save_reminder_data():
@@ -440,8 +464,8 @@ def save_reminder_data():
                 if saved:
                     results.append(saved)
             response = jsonify({
-                "success": True, 
-                "reminders": results, 
+                "success": True,
+                "reminders": results,
                 "count": len(results)
             })
         else:
@@ -455,6 +479,7 @@ def save_reminder_data():
             "error": f"Failed to save reminder data: {str(e)}"
         }), 500
 
+
 @format_reminder_bp.route('/delete-reminder', methods=['POST'])
 def delete_reminder():
     try:
@@ -465,7 +490,8 @@ def delete_reminder():
             return jsonify({"error": "Both id and userId are required"}), 400
         if reminders_collection is None:
             return jsonify({"error": "Reminders collection is not initialized due to missing environment variables."}), 500
-        result = reminders_collection.delete_one({"_id": ObjectId(reminder_id), "userId": user_id})
+        result = reminders_collection.delete_one(
+            {"_id": ObjectId(reminder_id), "userId": user_id})
         if result.deleted_count == 0:
             return jsonify({"error": f"Reminder with ID {reminder_id} and userId {user_id} not found"}), 404
         return jsonify({"success": True, "message": f"Reminder with ID {reminder_id} deleted"})
