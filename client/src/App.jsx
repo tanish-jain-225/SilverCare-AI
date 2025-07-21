@@ -75,12 +75,10 @@ function AppRoutes() {
       <RootLayout>
         <Suspense fallback={<LoadingScreen />}>
           <Routes>
-            {/* Root path: show login for unauthenticated users, redirect to home for authenticated */}
+            {/* Root path: always redirect to /login */}
             <Route 
               path="/" 
-              element={
-                isAuthenticated ? <Navigate to="/home" replace /> : <Login />
-              } 
+              element={<Navigate to="/login" replace />} 
             />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />

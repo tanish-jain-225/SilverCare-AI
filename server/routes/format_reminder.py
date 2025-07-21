@@ -62,7 +62,7 @@ client = Together(api_key=together_api_key)
 # Initialize MongoDB client
 if mongo_url and db_name and reminders_collection_name:
     mongo_client = MongoClient(mongo_url)
-    db = mongo_client[db_name]
+    db = mongo_client[db_name] 
     reminders_collection = db[reminders_collection_name]
 else:
     mongo_client = None
@@ -212,6 +212,7 @@ def process_reminders(reminders_list, user_id):
             results.append(saved_reminder)
         except Exception as e:
             error_msg = f"Error processing reminder: {str(e)}"
+            print(error_msg)
             errors.append(error_msg)
     if not results:
         return jsonify({"error": "No valid reminders found", "details": errors}), 400
@@ -231,6 +232,9 @@ def format_reminder():
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
         response.headers.add('Access-Control-Allow-Methods', 'POST')
         return response
+        
+    print("POST /format-reminder endpoint called")
+    print(f"Request data: {request.json}")
     
     # Important - ensure we have a JSON body with 'input' field and userId
     if not request.json:
@@ -244,7 +248,7 @@ def format_reminder():
         return jsonify({"error": "No userId provided. Please send JSON with 'userId' field."}), 400
     if reminders_collection is None:
         return jsonify({"error": "Reminders collection is not initialized due to missing environment variables."}), 500
-    
+        
     # Instruct the LLM to format the input as a reminder with intelligent date/time handling
     date_context = get_dynamic_date_context_for_reminder()
     
@@ -360,7 +364,7 @@ def save_to_mongodb(reminder):
     print(f"Saved reminder to MongoDB with _id: {inserted_id}")
     json_safe_reminder = convert_to_json_friendly(reminder_to_save)
     if isinstance(json_safe_reminder, dict):
-        json_safe_reminder['id'] = str(inserted_id)
+    json_safe_reminder['id'] = str(inserted_id)
     return json_safe_reminder
 
 @format_reminder_bp.route('/reminders', methods=['GET'])
@@ -423,6 +427,7 @@ def save_reminder_data():
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
         response.headers.add('Access-Control-Allow-Methods', 'POST')
         return response
+    print("POST /reminder-data endpoint called")
     reminder_data = request.json
     if not reminder_data:
         return jsonify({"error": "No reminder data provided"}), 400

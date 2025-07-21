@@ -49,31 +49,35 @@ export default function Emergency() {
 
   // Helper function to format accuracy information
   const getAccuracyStatus = (accuracyMeters) => {
-    if (!accuracyMeters) return { status: "Unknown", color: "gray", description: "Accuracy information unavailable" };
+    if (!accuracyMeters) return { status: "Unknown", color: "gray", description: "Accuracy information unavailable", tip: null };
     
     if (accuracyMeters <= 10) {
       return { 
         status: "Excellent", 
         color: "green", 
-        description: `Very precise location (±${accuracyMeters.toFixed(1)}m)` 
+        description: `Your location is very precise (within ${accuracyMeters.toFixed(0)} meters).`,
+        tip: null 
       };
     } else if (accuracyMeters <= 50) {
       return { 
         status: "Good", 
         color: "blue", 
-        description: `Good accuracy (±${accuracyMeters.toFixed(1)}m)` 
+        description: `Your location is accurate (within ${accuracyMeters.toFixed(0)} meters).`,
+        tip: "For even better accuracy, try moving near a window." 
       };
     } else if (accuracyMeters <= 100) {
       return { 
         status: "Fair", 
         color: "yellow", 
-        description: `Moderate accuracy (±${accuracyMeters.toFixed(1)}m)` 
+        description: `Your location is approximate (within ${accuracyMeters.toFixed(0)} meters).`,
+        tip: "To improve accuracy, move near a window or outdoors if it's safe to do so."
       };
     } else {
       return { 
         status: "Poor", 
         color: "red", 
-        description: `Low accuracy (±${accuracyMeters.toFixed(1)}m)` 
+        description: `Your location may not be precise (over ${accuracyMeters.toFixed(0)} meters).`,
+        tip: "For best results, please move outdoors or to a place with a clear view of the sky."
       };
     }
   };
@@ -432,6 +436,11 @@ export default function Emergency() {
                           <div className="text-xs text-primary-200/80 dark:text-primary-100/70 mt-1">
                             {accuracyInfo.description}
                           </div>
+                          {accuracyInfo.tip && (
+                            <div className="mt-2 pt-2 border-t border-primary-100/20 dark:border-primary-100/10 text-xs text-blue-600 dark:text-blue-400">
+                              <span className="font-semibold">Tip:</span> {accuracyInfo.tip}
+                            </div>
+                          )}
                         </div>
                       );
                     })()}

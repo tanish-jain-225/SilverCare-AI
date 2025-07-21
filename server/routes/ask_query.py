@@ -22,10 +22,6 @@ load_dotenv()
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("DB_NAME")
 COLLECTION_NAME = os.getenv("CHAT_SESSIONS_COLLECTION")
-
-if MONGO_URI is None or DB_NAME is None or COLLECTION_NAME is None:
-    raise RuntimeError("Missing required environment variables for MongoDB connection.")
-
 mongo_client = MongoClient(MONGO_URI)
 db = mongo_client[DB_NAME]
 chat_sessions_col = db[COLLECTION_NAME]
@@ -647,6 +643,8 @@ def send_message():
     reminder_result = None
     # Lowered from 0.4 to 0.2 for more lenient detection
     if is_reminder_request and reminder_confidence > 0.2:
+        print(
+            f"Reminder detected with confidence {reminder_confidence}: {user_message}")
         print(f"Reminder components: {reminder_components}")
 
         # Call format reminder API
