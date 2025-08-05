@@ -1,22 +1,25 @@
-const API_KEY = '92f616ec564142dc9203200369a98934'; // Replace with your actual API key
+import { route_endpoint } from "./helper";
 
-const API_URL = `https://api.worldnewsapi.com/search-news?api-key=${API_KEY}`;
+// Use backend API for news to avoid CORS issues
+const BASE_API = route_endpoint;
 
 /**
- * Fetch news articles from the World News API.
- * @param {string} query - The search query for news articles.
- * @param {string} language - The language of the articles (default: 'en').
- * @param {number} limit - The number of articles to fetch (default: 10).
- * @returns {Promise<Object[]>} - A promise that resolves to an array of news articles.
+ * Fetch news articles by text search via backend proxy.
+ * @param {string} text - The text to search news articles by.
+ * @returns {Promise<Object[]>} - A promise that resolves to an array of news articles matching the text.
  */
-export async function fetchNewsArticles(query = '', limit = 0) {
+export async function fetchNewsByText(text) {
+  if (!text) {
+    throw new Error("Text is required to search news articles.");
+  }
+
   try {
-    const url = `${API_URL}&categories=${encodeURIComponent(query)}&language=en&number=10`; // Set limit to 10
+    const url = `${BASE_API}/fetch-news?text=${encodeURIComponent(text)}`;
 
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'x-api-key': API_KEY,
+        'Content-Type': 'application/json',
       },
     });
 
@@ -25,65 +28,42 @@ export async function fetchNewsArticles(query = '', limit = 0) {
     }
 
     const data = await response.json();
-    console.log(`Fetched ${data.news.length} articles from the backend.`);
 
-    // Map API response to frontend format
-    return data.news.map((article) => ({
-      id: article.id,
-      title: article.title,
-      description: article.summary || article.text,
-      url: article.url,
-      urlToImage: article.image,
-      source: { name: article.source_country },
-      publishedAt: article.publish_date,
-      category: article.category,
-    }));
+    // Check if the response indicates success
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to fetch news articles');
+    }
+
+    // Return the articles array from the backend response
+    return data.articles || [];
   } catch (error) {
-    console.error('Error fetching news articles:', error);
     throw error;
   }
 }
 
-/**
- * Fetch news articles by category from the World News API.
- * @param {string} category - The category to filter news articles by.
- * @returns {Promise<Object[]>} - A promise that resolves to an array of news articles in the specified category.
- */
-export async function fetchNewsByCategory(category) {
-  if (!category) {
-    throw new Error("Category is required to fetch news articles.");
-  }
+// --- Emergency Saved Contacts API (MongoDB) ---
+// Use the same BASE_API constant defined above
 
-  try {
-    const url = `${API_URL}&categories=${encodeURIComponent(category)}&language=en`;
-    console.log("Fetching news with URL:", url); // Debugging log
+export async function getSavedContacts(userId) {
+  const res = await fetch(`${BASE_API}/api/saved-contacts?user_id=${userId}`);
+  if (!res.ok) throw new Error('Failed to fetch saved contacts');
+  return res.json();
+}
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'x-api-key': API_KEY,
-      },
-    });
+export async function addSavedContact(userId, contact) {
+  const res = await fetch(`${BASE_API}/api/saved-contacts?user_id=${userId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(contact),
+  });
+  if (!res.ok) throw new Error('Failed to add contact');
+  return res.json();
+}
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch news articles: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    // Map API response to frontend format
-    return data.news.map((article) => ({
-      id: article.id,
-      title: article.title,
-      description: article.summary || article.text,
-      url: article.url,
-      urlToImage: article.image,
-      source: { name: article.source_country },
-      publishedAt: article.publish_date,
-      category: article.category,
-    }));
-  } catch (error) {
-    console.error("Error fetching news articles by category:", error);
-    throw error;
-  }
+export async function deleteSavedContact(userId, contactId) {
+  const res = await fetch(`${BASE_API}/api/saved-contacts/${contactId}?user_id=${userId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete contact');
+  return res.json();
 }

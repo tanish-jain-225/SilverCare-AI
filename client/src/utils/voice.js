@@ -42,6 +42,9 @@ export class VoiceService {
 
       utterance.onend = () => {
         this.isSpeaking = false;
+        if (typeof options.onended === 'function') {
+          options.onended();
+        }
         resolve();
       };
 
@@ -49,6 +52,9 @@ export class VoiceService {
         this.isSpeaking = false;
         // Treat 'interrupted' errors as normal behavior, not actual errors
         if (event.error === 'interrupted') {
+          if (typeof options.onended === 'function') {
+            options.onended();
+          }
           resolve();
         } else {
           reject(event);

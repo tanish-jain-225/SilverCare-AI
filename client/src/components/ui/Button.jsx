@@ -34,6 +34,7 @@ export function Button({
   };
 
   return (
+    // Button component
     <button
       type={type}
       onClick={onClick}
@@ -87,7 +88,7 @@ Button.propTypes = {
   onClick: PropTypes.func,
   variant: PropTypes.oneOf(["primary", "secondary", "danger", "outline", "subtle"]),
   size: PropTypes.oneOf(["sm", "md", "lg", "xl"]),
-  icon: PropTypes.oneOfType([PropTypes.func, PropTypes.string]),
+  icon: PropTypes.oneOfType([PropTypes.func, PropTypes.object, PropTypes.string]), // Allow object for lucide-react icons
   disabled: PropTypes.bool,
   type: PropTypes.string,
   fullWidth: PropTypes.bool,

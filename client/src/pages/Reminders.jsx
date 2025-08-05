@@ -9,20 +9,16 @@ import {
   Mic,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useTranslation } from "react-i18next";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Card } from "../components/ui/Card";
 import { useVoice } from "../hooks/useVoice";
-import { VoiceButton } from "../components/voice/VoiceButton";
-import axios from "axios";
-import { route_endpoint } from "../utils/helper";
+import { route_endpoint, convertTo24Hour, formatTimeForDisplay, formatTimeForSpeech, formatDate } from "../utils/helper";
 import { useApp } from "../context/AppContext";
 
 export function Reminders() {
   const navigate = useNavigate();
-  const { t } = useTranslation();
-  const { speak } = useVoice();
+  const { speak, stop, isSpeaking } = useVoice();
   const { user } = useApp();
   const [reminders, setReminders] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -46,7 +42,7 @@ export function Reminders() {
   // Enhanced fetch with better error handling and sync status
   const fetchReminders = async (showLoadingState = true) => {
     if (!user?.id) {
-      console.log("No user ID available for fetching reminders");
+      console.error("No user ID available for fetching reminders");
       return;
     }
 
@@ -56,7 +52,6 @@ export function Reminders() {
         setSyncStatus("syncing");
       }
 
-      console.log(`Fetching reminders for user: ${user.id}`);
       const response = await fetch(
         `${route_endpoint}/reminders?userId=${user.id}&timestamp=${Date.now()}`,
         {
@@ -74,13 +69,18 @@ export function Reminders() {
       }
 
       const data = await response.json();
-      console.log("Reminders data received:", data);
 
       if (data.success && Array.isArray(data.reminders)) {
         // Sort reminders by created_at in descending order (newest first)
-        const sortedReminders = data.reminders.sort((a, b) => {
-          return new Date(b.created_at) - new Date(a.created_at);
-        });
+        // and normalize time format to 12-hour display format
+        const sortedReminders = data.reminders
+          .map(reminder => ({
+            ...reminder,
+            time: formatTimeForDisplay(reminder.time) // Ensure 12-hour format
+          }))
+          .sort((a, b) => {
+            return new Date(b.created_at) - new Date(a.created_at);
+          });
         setReminders(sortedReminders);
         setSyncStatus("success");
       } else {
@@ -99,11 +99,11 @@ export function Reminders() {
   };
   const handleAddReminder = async () => {
     if (!newReminder.title || !newReminder.time || !newReminder.date) {
-      console.log("Missing required fields:", { newReminder });
+      console.error("Missing required fields:", { newReminder });
       return;
     }
     if (!user?.id) {
-      console.log("No user ID available");
+      console.error("No user ID available");
       speak("Please log in to add reminders");
       return;
     }
@@ -115,8 +115,6 @@ export function Reminders() {
       date: newReminder.date,
       userId: user.id,
     };
-
-    console.log("Adding new reminder:", reminder);
 
     try {
       setSyncStatus("syncing");
@@ -135,7 +133,6 @@ export function Reminders() {
       }
 
       const data = await response.json();
-      console.log("Server response:", data);
 
       if (data.success) {
         // Fetch updated reminders after successful addition
@@ -200,19 +197,13 @@ export function Reminders() {
   };
 
   const handleReadReminder = (reminder) => {
+    const timeForSpeech = formatTimeForSpeech(reminder.time);
     speak(
-      `Reminder: ${reminder.title} at ${reminder.time} on ${reminder.date}`
+      `Reminder: ${reminder.title} at ${timeForSpeech} on ${reminder.date}`
     );
   };
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-  };
+  // Use formatDate from helper.js for consistency - no local function needed
 
   // Local notification scheduling
   React.useEffect(() => {
@@ -226,15 +217,17 @@ export function Reminders() {
   React.useEffect(() => {
     let timers = [];
     let alarmActive = false;
-    // Only schedule alarms for future reminders, and limit to 1 audio at a time
+    // Only schedule alarms for future reminders and limit to 1 audio at a time
     const now = new Date();
     const futureReminders = uniqueReminders.filter((reminder) => {
       if (!reminder.date || !reminder.time) return false;
-      const reminderTime = new Date(`${reminder.date}T${reminder.time}`);
+      const time24h = convertTo24Hour(reminder.time);
+      const reminderTime = new Date(`${reminder.date}T${time24h}`);
       return reminderTime > now;
     });
     futureReminders.forEach((reminder) => {
-      const reminderTime = new Date(`${reminder.date}T${reminder.time}`);
+      const time24h = convertTo24Hour(reminder.time);
+      const reminderTime = new Date(`${reminder.date}T${time24h}`);
       const delay = reminderTime - now;
       if (delay > 0) {
         const timer = setTimeout(() => {
@@ -245,11 +238,11 @@ export function Reminders() {
           const audio = new Audio("/alarm.mp3");
           setAlarmAudio(audio);
           setIsAlarmPlaying(true);
-          audio.play().catch(() => { });
+          audio.play().catch(() => {});
           // Show notification if allowed
           if (window.Notification && Notification.permission === "granted") {
             new Notification("Alarm", {
-              body: `${reminder.title} at ${reminder.time} on ${reminder.date}`,
+              body: `${reminder.title} at ${formatTimeForDisplay(reminder.time)} on ${reminder.date}`,
               icon: "/voice-search.png",
             });
           }
@@ -297,8 +290,6 @@ export function Reminders() {
     setSyncStatus("syncing");
 
     try {
-      console.log("Sending voice input for reminder creation:", voiceInput);
-
       const response = await fetch(`${route_endpoint}/format-reminder`, {
         method: "POST",
         headers: {
@@ -318,7 +309,6 @@ export function Reminders() {
       }
 
       const data = await response.json();
-      console.log("Voice reminder response:", data);
 
       if (data.success && data.reminders) {
         speak(data.message || "Voice reminder created successfully");
@@ -326,10 +316,6 @@ export function Reminders() {
         // Sync with backend to get the latest reminders including the new one
         await fetchReminders(false); // Don't show loading state
         setSyncStatus("success");
-
-        console.log(
-          `Voice reminder created: ${data.reminders.length} reminders processed`
-        );
       } else {
         throw new Error(data.error || "Failed to create voice reminder");
       }
@@ -345,30 +331,16 @@ export function Reminders() {
   // Auto-sync when user changes
   useEffect(() => {
     if (user?.id) {
-      console.log("User changed, fetching reminders for:", user.id);
       fetchReminders();
     } else {
-      console.log("No user ID available, skipping reminder fetch");
+      console.error("No user ID available for fetching reminders");
     }
-  }, [user?.id]);
-
-  // Auto-sync every 30 seconds to keep data fresh
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const syncInterval = setInterval(() => {
-      console.log("Auto-syncing reminders...");
-      fetchReminders(false); // Silent sync without loading indicator
-    }, 30000); // 30 seconds
-
-    return () => clearInterval(syncInterval);
   }, [user?.id]);
 
   // Sync when window regains focus (user comes back to tab)
   useEffect(() => {
     const handleFocus = () => {
       if (user?.id) {
-        console.log("Window focused, syncing reminders...");
         fetchReminders(false);
       }
     };
@@ -377,18 +349,8 @@ export function Reminders() {
     return () => window.removeEventListener("focus", handleFocus);
   }, [user?.id]);
 
-  // Initial load on component mount
-  useEffect(() => {
-    if (user?.id) {
-      console.log("Initial load, fetching reminders for:", user.id);
-      fetchReminders();
-    } else {
-      console.log("No user ID available on initial load");
-    }
-  }, []);
-
   return (
-    <main className="min-h-screen w-full overflow-x-hidden bg-gradient-to-br from-primary-50 via-primary-100/50 to-accent-yellow/20 dark:from-dark-50 dark:via-dark-100/50 dark:to-accent-yellow/10 flex flex-col">
+    <main className="w-full pb-20">
       {/* Show Stop Alarm button if alarm is playing */}
       {isAlarmPlaying && alarmAudio && (
         <div className="fixed top-0 left-0 w-full flex justify-center z-50 px-4">
@@ -407,43 +369,45 @@ export function Reminders() {
         <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
           <div className="flex flex-col items-center text-center gap-4">
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-primary-300 dark:text-primary-100">
-              {t("Reminders")}
+              Reminders
             </h1>
             <p className="text-primary-200/80 dark:text-primary-100/60 text-sm sm:text-base max-w-md">
-              {t("manageReminders", "Manage your daily reminders and stay on track")}
+              Manage your daily reminders and stay on track
             </p>
-            <div className="flex items-center gap-4 mt-4">
+            <div className="flex items-center gap-2 md:gap-6 mt-4 justify-around">
               <Button
-                onClick={() => fetchReminders(true)}
+                onClick={() => {
+                  stop(); // Stop any ongoing speech
+                  fetchReminders(true);
+                }}
                 variant="outline"
                 size="lg"
                 disabled={isLoading || syncStatus === "syncing"}
-                ariaLabel={t("refreshReminders", "Refresh reminders")}
-                className={`${syncStatus === "syncing" ? "animate-pulse" : ""} 
+                ariaLabel="Refresh reminders"
+                className={`${
+                  syncStatus === "syncing" ? "animate-pulse" : ""
+                } 
                   px-6 py-3 
                   dark:hover:text-white
                   hover:bg-primary-50 dark:hover:bg-dark-200 
                   border-2 border-primary-200/30 dark:border-dark-600/30
                   rounded-xl
                   transition-all duration-300
-                  hover:scale-105
                   hover:shadow-lg
-                  focus:ring-2 focus:ring-primary-200/50 dark:focus:ring-primary-100/50
                   disabled:opacity-50 disabled:cursor-not-allowed
                   text-base font-medium
                   flex items-center justify-center gap-2`}
               >
                 <div className="flex items-center gap-1 align-middle">
                   <RefreshCw className="w-5 h-5" />
-                  <span>{t("Refresh")}</span>
+                  <span>Refresh</span>
                 </div>
-
               </Button>
               <Button
                 onClick={() => setShowAddForm(true)}
                 variant="primary"
                 size="lg"
-                ariaLabel={t("add")}
+                ariaLabel="Add reminder"
                 className="
                   px-6 py-3
                   bg-gradient-to-r from-primary-300 to-primary-400 
@@ -454,7 +418,6 @@ export function Reminders() {
                   rounded-xl
                   shadow-lg
                   transition-all duration-300
-                  hover:scale-105
                   hover:shadow-xl
                   focus:ring-2 focus:ring-primary-200/50 dark:focus:ring-primary-100/50
                   text-base font-medium
@@ -462,7 +425,7 @@ export function Reminders() {
               >
                 <div className="flex items-center gap-1">
                   <Plus className="w-5 h-5" />
-                  <span>{t("addReminder")}</span>
+                  <span>Add Reminder</span>
                 </div>
               </Button>
             </div>
@@ -471,70 +434,73 @@ export function Reminders() {
       </div>
 
       {/* Main Content */}
-      <section className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <section className="flex-1 w-full max-w-4xl mx-auto p-4">
         {isLoading ? (
           <div className="flex justify-center items-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-primary-200 dark:border-primary-100"></div>
             <p className="ml-3 sm:ml-4 text-sm sm:text-base text-primary-300 dark:text-primary-100">
-              {t("loadingReminders", "Loading reminders...")}
+              Loading reminders...
             </p>
           </div>
         ) : uniqueReminders.length === 0 ? (
-          <div className="text-center py-12 bg-white/50 dark:bg-dark-50/50 rounded-2xl border border-primary-100/20 dark:border-dark-600/20 backdrop-blur-sm">
+          <div className="text-center py-12 bg-white/50 dark:bg-dark-50/50 rounded-2xl border border-primary-100/20 dark:border-dark-600/20 backdrop-blur-sm mb-10">
             <div className="text-primary-200 dark:text-primary-100 mb-2 text-base sm:text-lg">
-              {t("noReminders", "No reminders found")}
+              No reminders found
             </div>
             <p className="text-sm text-primary-200/80 dark:text-primary-100/60">
-              {t("addFirstReminder", "Add your first reminder to get started")}
+              Add your first reminder to get started
             </p>
           </div>
         ) : (
-          <div className="grid gap-3 sm:gap-4">
+          <div className="grid gap-3 sm:gap-4 py-10">
             {uniqueReminders.map((reminder) => (
               <Card
                 key={reminder.created_at}
-                className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 w-full gap-4 hover:shadow-md transition-all duration-200 bg-white/90 dark:bg-dark-50/90 border border-primary-100/20 dark:border-dark-600/20 backdrop-blur-sm hover:scale-[1.01] hover:border-primary-200/30 dark:hover:border-primary-100/30"
+                className="flex justify-between items-center p-3 xs:p-4 sm:p-5 md:p-6 gap-3 xs:gap-4 hover:shadow-lg transition-all duration-300 bg-white dark:bg-dark-50 border border-primary-100/20 dark:border-dark-600/20 hover:scale-[1.02] hover:border-primary-200/40 dark:hover:border-primary-100/40 rounded-xl sm:rounded-2xl"
               >
-                <div className="flex items-start sm:items-center gap-4 min-w-0 flex-1">
-                  <div className="bg-gradient-to-br from-primary-100/20 to-accent-yellow/20 dark:from-primary-100/10 dark:to-accent-yellow/10 rounded-full p-2.5 flex-shrink-0 mt-0.5 sm:mt-0">
+                <div className="flex gap-2 xs:gap-3 sm:gap-4 md:gap-5 items-center flex-1 min-w-0">
+                  <div className="bg-gradient-to-br from-primary-100/30 to-accent-yellow/30 dark:from-primary-100/20 dark:to-accent-yellow/20 rounded-full p-2 xs:p-3 sm:p-4 flex-shrink-0 border border-primary-100/30 dark:border-primary-100/20">
                     <Clock
-                      className="text-primary-200 dark:text-primary-100 w-5 h-5 sm:w-6 sm:h-6"
+                      className="text-primary-300 dark:text-primary-100 w-4 h-4 xs:w-5 xs:h-5 sm:w-6 sm:h-6"
                       aria-hidden="true"
                     />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold text-base sm:text-lg md:text-xl text-primary-300 dark:text-primary-100 break-words leading-tight">
+                  <div className="flex flex-col gap-0.5 xs:gap-1 sm:gap-2 flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm xs:text-base sm:text-lg md:text-xl text-primary-300 dark:text-primary-100 break-words leading-tight line-clamp-1">
                       {reminder.title}
                     </h3>
-                    <p className="text-sm text-primary-200 dark:text-primary-100/80 mt-1">
-                      <span className="inline-block">
-                        {formatDate(reminder.date)}
+                    <div className="flex flex-wrap items-center gap-1 xs:gap-2 text-xs xs:text-sm sm:text-base text-primary-200/80 dark:text-primary-100/70">
+                      <span className="inline-block font-medium">
+                        {formatDate(reminder.date, { weekday: "short", month: "short", day: "numeric" })}
                       </span>
-                      <span className="mx-2 text-primary-100 dark:text-primary-100/40">
-                        •
+                      <span className="text-primary-100/60 dark:text-primary-100/40">
+                        |
                       </span>
-                      <span className="inline-block">{reminder.time}</span>
-                    </p>
+                      <span className="inline-block font-medium">{formatTimeForDisplay(reminder.time)}</span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex gap-2 w-full sm:w-auto">
+                <div className="flex gap-2 xs:gap-2 sm:gap-3 items-center flex-shrink-0">
                   <Button
                     onClick={() => handleReadReminder(reminder)}
                     variant="outline"
                     size="sm"
-                    icon={Volume2}
-                    ariaLabel={t("readReminder", "Read reminder")}
-                    className="flex-1 sm:flex-none hover:bg-primary-100/10 dark:hover:bg-primary-100/5"
-                  />
+                    ariaLabel="Read reminder"
+                    className="flex justify-center items-center hover:bg-primary-100/20 dark:hover:bg-primary-100 border-primary-200/30 dark:border-primary-100/30 w-8 h-8 xs:w-9 xs:h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg xs:rounded-xl transition-all duration-300 touch-manipulation"
+                  >
+                    <Volume2 className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+                  </Button>
+                  
                   <Button
                     onClick={() => handleDeleteReminder(reminder.id)}
                     variant="danger"
                     size="sm"
-                    icon={Trash2}
-                    ariaLabel={t("deleteReminder", "Delete reminder")}
-                    className="flex-1 sm:flex-none dark:bg-red-600"
-                  />
+                    ariaLabel="Delete reminder"
+                    className="flex justify-center items-center bg-red-500 dark:bg-red-600 hover:bg-red-600 dark:hover:bg-red-700 border-red-500/30 dark:border-red-600/30 w-8 h-8 xs:w-9 xs:h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg xs:rounded-xl transition-all duration-300 touch-manipulation"
+                  >
+                    <Trash2 className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+                  </Button>
                 </div>
               </Card>
             ))}
@@ -542,71 +508,81 @@ export function Reminders() {
         )}
         {/* Add Reminder Form */}
         {showAddForm && (
-          <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white/95 dark:bg-dark-50/95 rounded-xl sm:rounded-2xl shadow-xl w-full max-w-xs sm:max-w-sm md:max-w-md mx-auto transform animate-in fade-in zoom-in-95 duration-200 border border-primary-100/20 dark:border-dark-600/20 backdrop-blur-sm">
-              <div className="p-4 sm:p-6">
-                <h2 className="text-lg sm:text-xl font-bold mb-4 sm:mb-6 text-primary-300 dark:text-primary-100">
-                  {t("addReminder")}
+          <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 xs:p-4 sm:p-6">
+            <div className="bg-white/95 dark:bg-dark-50/95 rounded-xl xs:rounded-xl sm:rounded-2xl lg:rounded-3xl shadow-2xl w-full max-w-[90vw] xs:max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl mx-auto transform animate-in fade-in zoom-in-95 duration-200 border border-primary-100/20 dark:border-dark-600/20 backdrop-blur-sm max-h-[90vh] overflow-y-auto">
+              <div className="p-4 xs:p-5 sm:p-6 md:p-7 lg:p-8">
+                <h2 className="text-lg xs:text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold mb-4 xs:mb-5 sm:mb-6 md:mb-7 lg:mb-8 text-primary-300 dark:text-primary-100 text-center">
+                  Add Reminder
                 </h2>
 
-                <div className="space-y-3 sm:space-y-4">
-                  <Input
-                    label={t("title")}
-                    value={newReminder.title}
-                    onChange={(e) =>
-                      setNewReminder({ ...newReminder, title: e.target.value })
-                    }
-                    required
-                    placeholder={t("reminderTitle", "Enter reminder title")}
-                    className="w-full dark:bg-dark-200"
-                  />
+                <div className="space-y-4 xs:space-y-5 sm:space-y-6 md:space-y-7 lg:space-y-8">
+                  <div className="space-y-1 xs:space-y-1.5 sm:space-y-2">
+                    <Input
+                      label="Title"
+                      value={newReminder.title}
+                      onChange={(e) =>
+                        setNewReminder({ ...newReminder, title: e.target.value })
+                      }
+                      required
+                      placeholder="Enter reminder title"
+                      className="w-full dark:bg-dark-200 text-sm xs:text-base sm:text-lg md:text-xl lg:text-2xl p-3 xs:p-4 sm:p-5 md:p-6 lg:p-7 rounded-lg xs:rounded-xl sm:rounded-2xl"
+                    />
+                  </div>
 
-                  <Input
-                    label={t("date")}
-                    type="date"
-                    value={newReminder.date}
-                    onChange={(e) =>
-                      setNewReminder({ ...newReminder, date: e.target.value })
-                    }
-                    required
-                    className="w-full dark:bg-dark-200"
-                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 xs:gap-5 sm:gap-6 md:gap-7 lg:gap-8">
+                    <div className="space-y-1 xs:space-y-1.5 sm:space-y-2">
+                      <Input
+                        label="Date"
+                        type="date"
+                        value={newReminder.date}
+                        onChange={(e) =>
+                          setNewReminder({ ...newReminder, date: e.target.value })
+                        }
+                        required
+                        className="w-full dark:bg-dark-200 text-sm xs:text-base sm:text-lg md:text-xl lg:text-2xl p-3 xs:p-4 sm:p-5 md:p-6 lg:p-7 rounded-lg xs:rounded-xl sm:rounded-2xl"
+                      />
+                    </div>
 
-                  <Input
-                    label={t("time")}
-                    type="time"
-                    value={newReminder.time}
-                    onChange={(e) =>
-                      setNewReminder({ ...newReminder, time: e.target.value })
-                    }
-                    required
-                    className="w-full dark:bg-dark-200"
-                  />
+                    <div className="space-y-1 xs:space-y-1.5 sm:space-y-2">
+                      <Input
+                        label="Time"
+                        type="time"
+                        value={convertTo24Hour(newReminder.time)}
+                        onChange={(e) => {
+                          const time24h = e.target.value;
+                          const time12h = formatTimeForDisplay(time24h);
+                          setNewReminder({ ...newReminder, time: time12h });
+                        }}
+                        required
+                        className="w-full dark:bg-dark-200 text-sm xs:text-base sm:text-lg md:text-xl lg:text-2xl p-3 xs:p-4 sm:p-5 md:p-6 lg:p-7 rounded-lg xs:rounded-xl sm:rounded-2xl"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-6 sm:mt-8">
+                <div className="flex flex-col xs:flex-col sm:flex-row gap-3 xs:gap-4 sm:gap-5 md:gap-6 lg:gap-7 mt-6 xs:mt-7 sm:mt-8 md:mt-9 lg:mt-10">
                   <Button
                     onClick={() => setShowAddForm(false)}
                     variant="outline"
                     size="md"
-                    ariaLabel={t("cancel")}
-                    className="w-full sm:w-auto order-2 sm:order-1 dark:hover:bg-dark-200"
+                    ariaLabel="Cancel"
+                    className="w-full sm:w-auto order-2 sm:order-1 dark:hover:bg-dark-200 text-sm xs:text-base sm:text-lg md:text-xl lg:text-2xl py-3 xs:py-4 sm:py-5 md:py-6 lg:py-7 px-6 xs:px-7 sm:px-8 md:px-9 lg:px-10 rounded-lg xs:rounded-xl sm:rounded-2xl font-semibold transition-all duration-300 hover:scale-105 touch-manipulation"
                   >
-                    {t("cancel")}
+                    Cancel
                   </Button>
                   <Button
                     onClick={handleAddReminder}
                     variant="primary"
                     size="md"
-                    ariaLabel={t("add")}
-                    className="w-full sm:w-auto order-1 sm:order-2 dark:bg-dark-300"
+                    ariaLabel="Add reminder"
+                    className="w-full sm:w-auto order-1 sm:order-2 dark:bg-dark-300 text-sm xs:text-base sm:text-lg md:text-xl lg:text-2xl py-3 xs:py-4 sm:py-5 md:py-6 lg:py-7 px-6 xs:px-7 sm:px-8 md:px-9 lg:px-10 rounded-lg xs:rounded-xl sm:rounded-2xl font-semibold transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 touch-manipulation shadow-lg hover:shadow-xl"
                     disabled={
                       !newReminder.title ||
                       !newReminder.time ||
                       !newReminder.date
                     }
                   >
-                    {t("add")}
+                    Add Reminder
                   </Button>
                 </div>
               </div>

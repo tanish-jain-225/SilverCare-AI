@@ -20,7 +20,6 @@ export const ThemeToggle = () => {
         bg-gray-100 dark:bg-gray-800
         border border-gray-200 dark:border-gray-600
         hover:bg-gray-200 dark:hover:bg-gray-700
-        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800
         transition-all duration-300 ease-in-out
         group
         ${isDarkMode ? 'animate-theme-toggle' : ''}
@@ -28,28 +27,28 @@ export const ThemeToggle = () => {
             aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
         >
-            {/* Sun Icon */}
+            {/* Moon Icon for Light Mode */}
+            <Moon
+                className={`
+          absolute inset-0 m-auto w-5 h-5
+          text-blue-400
+          transition-all duration-300 ease-in-out
+          ${!isDarkMode
+                        ? 'opacity-100 rotate-0 scale-100'
+                        : 'opacity-0 -rotate-90 scale-0'
+                    }
+        `}
+            />
+
+            {/* Sun Icon for Dark Mode */}
             <Sun
                 className={`
           absolute inset-0 m-auto w-5 h-5
           text-yellow-500
           transition-all duration-300 ease-in-out
           ${isDarkMode
-                        ? 'opacity-0 rotate-90 scale-0'
-                        : 'opacity-100 rotate-0 scale-100'
-                    }
-        `}
-            />
-
-            {/* Moon Icon */}
-            <Moon
-                className={`
-          absolute inset-0 m-auto w-5 h-5
-          text-blue-400
-          transition-all duration-300 ease-in-out
-          ${isDarkMode
                         ? 'opacity-100 rotate-0 scale-100'
-                        : 'opacity-0 -rotate-90 scale-0'
+                        : 'opacity-0 rotate-90 scale-0'
                     }
         `}
             />
@@ -58,4 +57,4 @@ export const ThemeToggle = () => {
             <div className="absolute inset-0 rounded-full bg-blue-500 opacity-0 group-active:opacity-20 transition-opacity duration-150" />
         </button>
     );
-}; 
+};

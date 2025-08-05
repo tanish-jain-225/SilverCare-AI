@@ -32,13 +32,18 @@ export const RootLayout = ({ children }) => {
         }    }, [isDarkMode, isLoaded, isAuthPage, location.pathname]);
 
     return (
-        <div className={`
-      min-h-screen w-full
-      ${!isAuthPage ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100' : 'bg-white text-gray-900'}
-      transition-colors duration-300
-      ${isLoaded ? 'theme-loaded' : 'theme-loading'}
-    `}>
+        <div
+            className={`
+                min-h-screen w-full
+                flex flex-col
+                ${!isAuthPage ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100' : 'bg-white text-gray-900'}
+                transition-colors duration-300
+                ${isLoaded ? 'theme-loaded' : 'theme-loading'}
+                box-border
+            `}
+            style={{ minHeight: '100dvh' }}
+        >
             {children}
         </div>
     );
-}; 
+};

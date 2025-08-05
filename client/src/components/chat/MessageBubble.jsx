@@ -2,13 +2,11 @@ import React from "react";
 import { User, Bot } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useApp } from "../../context/AppContext";
+import { formatTimestamp } from "../../utils/helper";
 
 export function MessageBubble({ message, isUser, isError, timestamp, index }) {
   const formatTime = (timestamp) => {
-    return new Date(timestamp).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return formatTimestamp(timestamp);
   };
 
   const { user, logout } = useApp();
@@ -32,15 +30,15 @@ export function MessageBubble({ message, isUser, isError, timestamp, index }) {
               ? "bg-primary-200 text-white border border-neutral-400"
               : isError
               ? "bg-red-500 text-white"
-              : " bg-neutral-200 dark:bg-neutral-800 text-white  border border-neutral-400"
+              : " bg-white dark:bg-neutral-800 text-white  border border-neutral-400"
           }`}
         >
           {isUser ? (
-            user.profileImage ? (
+            user?.profilePicture?.data ? (
               <img
-                src={user.profileImage}
+                src={user.profilePicture.data}
                 alt="Profile"
-                className="w-8 h-8 rounded-full"
+                className="w-8 h-8 rounded-full object-cover border-2 border-primary-200"
               />
             ) : (
               <User className="w-5 h-5" />

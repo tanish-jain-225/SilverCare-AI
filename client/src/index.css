@@ -2,13 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
-    box-sizing: border-box;
-}
-
 /* CSS Variables for theme colors */
 :root {
-    /* Light mode variables */
+    /* Light mode variables - default state */
     --color-background: #ffffff;
     --color-background-secondary: #f8fafc;
     --color-background-tertiary: #f1f5f9;
@@ -27,6 +23,24 @@
     --color-warning: #f59e0b;
     --color-error: #ef4444;
     --color-info: #3b82f6;
+    margin: 0;
+    padding: 0;
+}
+
+/* Force light mode styling on initial load to prevent flash */
+html {
+    background-color: #ffffff;
+    color: #1f2937;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: #ffffff;
+    color: #1f2937;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    margin: 0;
+    padding: 0;
 }
 
 .dark {
@@ -65,6 +79,10 @@ body.dark-theme {
 /* Smooth transitions for theme switching */
 * {
     transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    outline: none;
 }
 
 /* Prevent transition on page load */
@@ -77,22 +95,343 @@ body.dark-theme {
     transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-/* Custom scrollbar for dark mode */
+/* Smooth transitions for scrollbar elements during theme changes */
+.theme-transition ::-webkit-scrollbar-track {
+    transition: background-color 0.3s ease, border-color 0.3s ease !important;
+}
+
+.theme-transition ::-webkit-scrollbar-thumb {
+    transition: background 0.3s ease, border-color 0.3s ease !important;
+}
+
+.theme-transition ::-webkit-scrollbar-corner {
+    transition: background-color 0.3s ease !important;
+}
+
+/* Ensure all scrollbars transition smoothly during theme change */
+.theme-transition .custom-scrollbar::-webkit-scrollbar-thumb,
+.theme-transition .thin-scrollbar::-webkit-scrollbar-thumb,
+.theme-transition .modal-scrollbar::-webkit-scrollbar-thumb,
+.theme-transition .popup-scrollbar::-webkit-scrollbar-thumb,
+.theme-transition .accent-scrollbar::-webkit-scrollbar-thumb {
+    transition: background 0.3s ease, border-color 0.3s ease, transform 0.2s ease !important;
+}
+
+/* Enhanced scrollbar styles with theme-aware colors and smooth transitions */
+/* Light mode scrollbar - applies to all scrollable elements */
+:root {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f8fafc;
+}
+
+/* Webkit scrollbar styling for light mode */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    transition: all 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #cbd5e1 0%, #94a3b8 100%);
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    transition: all 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #94a3b8 0%, #64748b 100%);
+    border-color: #cbd5e1;
+    transform: scale(1.05);
+}
+
+::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(180deg, #64748b 0%, #475569 100%);
+}
+
+::-webkit-scrollbar-corner {
+    background: #f1f5f9;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+/* Dark mode scrollbar with enhanced styling */
+.dark {
+    scrollbar-width: thin;
+    scrollbar-color: #4b5563 #1f2937;
+}
+
 .dark ::-webkit-scrollbar {
     width: 8px;
+    height: 8px;
 }
 
 .dark ::-webkit-scrollbar-track {
-    background: var(--color-surface);
+    background: #1f2937 !important;
+    border-radius: 6px;
+    border: 1px solid #374151 !important;
+    transition: all 0.3s ease;
 }
 
 .dark ::-webkit-scrollbar-thumb {
-    background: var(--color-border);
-    border-radius: 4px;
+    background: linear-gradient(180deg, #4b5563 0%, #374151 100%) !important;
+    border-radius: 6px;
+    border: 1px solid #374151 !important;
+    transition: all 0.3s ease;
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-    background: var(--color-text-tertiary);
+    background: linear-gradient(180deg, #6b7280 0%, #4b5563 100%) !important;
+    border-color: #6b7280 !important;
+    transform: scale(1.05);
+}
+
+.dark ::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(180deg, #9ca3af 0%, #6b7280 100%) !important;
+}
+
+.dark ::-webkit-scrollbar-corner {
+    background: #1f2937 !important;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+/* Specific scrollbar styles for different components */
+/* Modal and dialog scrollbars */
+.modal ::-webkit-scrollbar,
+.dialog ::-webkit-scrollbar,
+[role="dialog"] ::-webkit-scrollbar {
+    width: 6px;
+}
+
+.dark .modal ::-webkit-scrollbar,
+.dark .dialog ::-webkit-scrollbar,
+.dark [role="dialog"] ::-webkit-scrollbar {
+    width: 6px;
+}
+
+.modal ::-webkit-scrollbar-track,
+.dialog ::-webkit-scrollbar-track,
+[role="dialog"] ::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.dark .modal ::-webkit-scrollbar-track,
+.dark .dialog ::-webkit-scrollbar-track,
+.dark [role="dialog"] ::-webkit-scrollbar-track {
+    background: #1f2937 !important;
+    border-radius: 4px;
+}
+
+.modal ::-webkit-scrollbar-thumb,
+.dialog ::-webkit-scrollbar-thumb,
+[role="dialog"] ::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.6);
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.dark .modal ::-webkit-scrollbar-thumb,
+.dark .dialog ::-webkit-scrollbar-thumb,
+.dark [role="dialog"] ::-webkit-scrollbar-thumb {
+    background: rgba(75, 85, 99, 0.7) !important;
+    border-radius: 4px;
+}
+
+/* Textarea and content-editable scrollbars */
+textarea::-webkit-scrollbar,
+[contenteditable]::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.dark textarea::-webkit-scrollbar,
+.dark [contenteditable]::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+textarea::-webkit-scrollbar-track,
+[contenteditable]::-webkit-scrollbar-track {
+    background: #f8fafc;
+    border-radius: 4px;
+}
+
+.dark textarea::-webkit-scrollbar-track,
+.dark [contenteditable]::-webkit-scrollbar-track {
+    background: #1f2937 !important;
+    border-radius: 4px;
+}
+
+textarea::-webkit-scrollbar-thumb,
+[contenteditable]::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.5);
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.dark textarea::-webkit-scrollbar-thumb,
+.dark [contenteditable]::-webkit-scrollbar-thumb {
+    background: rgba(75, 85, 99, 0.6) !important;
+    border-radius: 4px;
+}
+
+/* Hover effect for all scrollable containers */
+*:hover::-webkit-scrollbar-thumb {
+    opacity: 1;
+}
+
+.dark *:hover::-webkit-scrollbar-thumb {
+    opacity: 1;
+}
+
+/* Custom scrollbar class for chat areas and special components */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.5);
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(156, 163, 175, 0.8);
+    transform: scale(1.05);
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(75, 85, 99, 0.6) !important;
+    border-radius: 4px;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(75, 85, 99, 0.9) !important;
+    transform: scale(1.05);
+}
+
+/* Thin scrollbar variant for compact areas */
+.thin-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.4);
+    border-radius: 2px;
+    transition: all 0.3s ease;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(156, 163, 175, 0.7);
+}
+
+.dark .thin-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(75, 85, 99, 0.5) !important;
+}
+
+.dark .thin-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(75, 85, 99, 0.8) !important;
+}
+
+/* Modal and popup scrollbar styling */
+.modal-scrollbar::-webkit-scrollbar,
+.popup-scrollbar::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+
+.modal-scrollbar::-webkit-scrollbar-track,
+.popup-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+}
+
+.modal-scrollbar::-webkit-scrollbar-thumb,
+.popup-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(59, 130, 246, 0.6);
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.modal-scrollbar::-webkit-scrollbar-thumb:hover,
+.popup-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(59, 130, 246, 0.8);
+}
+
+.dark .modal-scrollbar::-webkit-scrollbar-track,
+.dark .popup-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.dark .modal-scrollbar::-webkit-scrollbar-thumb,
+.dark .popup-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(96, 165, 250, 0.6) !important;
+}
+
+.dark .modal-scrollbar::-webkit-scrollbar-thumb:hover,
+.dark .popup-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(96, 165, 250, 0.8) !important;
+}
+
+/* Invisible scrollbar for seamless design */
+.invisible-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.invisible-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+/* Accent colored scrollbar for special areas */
+.accent-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.accent-scrollbar::-webkit-scrollbar-track {
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: 4px;
+}
+
+.accent-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.accent-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(45deg, #1d4ed8, #1e40af);
+    transform: scale(1.05);
+}
+
+.dark .accent-scrollbar::-webkit-scrollbar-track {
+    background: rgba(96, 165, 250, 0.1) !important;
+}
+
+.dark .accent-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(45deg, #60a5fa, #3b82f6) !important;
+}
+
+.dark .accent-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(45deg, #3b82f6, #2563eb) !important;
 }
 
 /* Line clamp utilities for text truncation */
@@ -163,7 +502,7 @@ body.dark-theme {
     }
 
     .theme-input {
-        @apply bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent;
+        @apply bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400;
     }
 
     .theme-button-primary {
@@ -180,8 +519,7 @@ body.dark-theme {
 }
 
 /* Ensure all form elements inherit theme */
-textarea,
-select {
+textarea {
     @apply theme-input;
 }
 
@@ -198,3 +536,143 @@ button {
 .theme-gradient-secondary {
     @apply bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-800 dark:to-gray-700;
 }
+
+/* Custom animations for LoadingScreen */
+@keyframes gradient-x {
+    0%, 100% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+}
+
+@keyframes loading-bar {
+    0% {
+        transform: translateX(-100%);
+    }
+    50% {
+        transform: translateX(0%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+    }
+    33% {
+        transform: translateY(-10px) rotate(120deg);
+    }
+    66% {
+        transform: translateY(5px) rotate(240deg);
+    }
+}
+
+@keyframes fade-in-up {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fade-in-out {
+    0%, 100% {
+        opacity: 0.7;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+@keyframes spin-slow {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes spin-reverse {
+    from {
+        transform: rotate(360deg);
+    }
+    to {
+        transform: rotate(0deg);
+    }
+}
+
+.animate-gradient-x {
+    background-size: 200% 200%;
+    animation: gradient-x 8s ease infinite;
+}
+
+.animate-loading-bar {
+    animation: loading-bar 2s ease-in-out infinite;
+}
+
+.animate-shimmer {
+    animation: shimmer 2s ease-in-out infinite;
+}
+
+.animate-float {
+    animation: float linear infinite;
+}
+
+.animate-fade-in-up {
+    animation: fade-in-up 1s ease-out;
+}
+
+.animate-fade-in-out {
+    animation: fade-in-out 3s ease-in-out infinite;
+}
+
+.animate-spin-slow {
+    animation: spin-slow 8s linear infinite;
+}
+
+.animate-spin-reverse {
+    animation: spin-reverse 1.5s linear infinite;
+}
+
+/*
+  SCROLLBAR UTILITY CLASSES - Theme-aware scrollbar styling with automatic toggling
+
+  🎨 THEME TOGGLE BEHAVIOR:
+  All scrollbars automatically switch between light and dark themes when theme is toggled.
+  Light Mode: Clean gray gradients with subtle borders
+  Dark Mode: Dark themed colors with proper contrast
+
+  📝 Usage examples:
+  - .custom-scrollbar: General purpose scrollbar for chat areas (6px width)
+  - .thin-scrollbar: Compact scrollbar for sidebar elements (4px width)
+  - .modal-scrollbar: Styled scrollbar for modals and popups (5px width)
+  - .accent-scrollbar: Blue accent colored scrollbar for special areas
+  - .invisible-scrollbar: Completely hidden scrollbar for seamless design
+
+  ✨ Features:
+  - Smooth transitions during theme changes (0.3s ease)
+  - Hover effects with subtle scaling
+  - Auto-adaptive colors based on theme
+  - Enhanced contrast for accessibility
+  - Cross-browser compatibility (Webkit + Firefox)
+
+  🚀 All classes automatically adapt to light/dark theme and include smooth transitions.
+  The global scrollbar styles apply to all elements by default and respect theme changes.
+*/

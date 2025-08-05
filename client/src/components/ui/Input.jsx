@@ -20,6 +20,7 @@ export const Input = forwardRef(function Input({
   const inputType = type === 'password' && showPassword ? 'text' : type;
 
   return (
+    // Input component
     <div className="w-full mb-4">
       {label && (
         <label
@@ -94,7 +95,11 @@ export const Input = forwardRef(function Input({
 Input.propTypes = {
   label: PropTypes.string,
   error: PropTypes.string,
-  icon: PropTypes.oneOfType([PropTypes.func, PropTypes.string]),
+  icon: PropTypes.oneOfType([
+    PropTypes.func,
+    PropTypes.object, // allow React components
+    PropTypes.string
+  ]),
   helperText: PropTypes.string,
   className: PropTypes.string,
   type: PropTypes.string,

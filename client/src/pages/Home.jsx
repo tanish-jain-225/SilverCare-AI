@@ -9,24 +9,32 @@ import {
   Heart,
   ChevronRight,
 } from "lucide-react";
-import { useTranslation } from "react-i18next";
-import { Card } from "../components/ui/Card";
 import { useApp } from "../context/AppContext";
 import { useVoice } from "../hooks/useVoice";
 import PropTypes from "prop-types";
 import { motion } from "framer-motion";
-import SplitText from "../components/homepage/SplitText";
 
 export function Home() {
   const navigate = useNavigate();
-  const { t } = useTranslation();
-  const { user } = useApp();
+  const { user, isAuthenticated, loading } = useApp();
   const { speak } = useVoice();
+
+  // If user is null but we're authenticated, show a temporary loading state
+  if (isAuthenticated && !user) {
+    return (
+      <div className="w-full bg-blue-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading user data...</p>
+        </div>
+      </div>
+    );
+  }
 
   const features = [
     {
       icon: Calendar,
-      title: t("blog"),
+      title: "Blog",
       description: "Entertain your day",
       path: "/blog",
       color: "feature-card-blue",
@@ -43,7 +51,7 @@ export function Home() {
     },
     {
       icon: Clock,
-      title: t("reminders"),
+      title: "Reminders",
       description: "Set and manage your reminders",
       path: "/reminders",
       color: "feature-card-green",
@@ -60,7 +68,7 @@ export function Home() {
     },
     {
       icon: AlertTriangle,
-      title: t("emergency"),
+      title: "Emergency",
       description: "Quick access to emergency help",
       path: "/emergency",
       color: "feature-card-orange",
@@ -77,7 +85,7 @@ export function Home() {
     },
     {
       icon: MessageSquare,
-      title: t("askQueries"),
+      title: "Ask Queries",
       description: "Ask health and life questions",
       path: "/ask-queries",
       color: "feature-card-yellow",
@@ -101,15 +109,16 @@ export function Home() {
   };
 
   React.useEffect(() => {
-    if (user) {
-      speak(t("welcome", { name: user.name }));
+    if (user && user.name) {
+      speak(`Welcome, ${user.name}!`);
     }
-  }, [user, speak, t]);
+  }, [user, speak]);
 
   return (
-    <main className="min-h-screen w-full overflow-x-hidden theme-gradient-primary flex flex-col items-center justify-center">
+    <main className="p-2">
+      
       {/* Welcome Banner */}
-      <section className="w-[90%] theme-gradient-secondary theme-border border rounded-2xl shadow-lg mx-10 my-6 overflow-hidden relative">
+      <section className="w-full max-w-4xl theme-gradient-secondary theme-border border rounded-2xl shadow-lg mx-auto my-4 overflow-hidden relative">
         {/* Decorative background elements */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary-100/30 dark:bg-primary-100/10 rounded-full blur-3xl"></div>
@@ -117,48 +126,35 @@ export function Home() {
         </div>
 
         <div className="container mx-auto px-6 py-12 md:py-16 max-w-9xl relative">
-          <div className="flex flex-col items-start space-y-6 md:space-y-8">
+          <div className="flex flex-col items-center space-y-6 md:space-y-8 text-center w-full">
             {/* Animated greeting */}
-            <div className="relative pl-6">
-              <div className="absolute -left-4 top-0 h-full w-1.5 bg-gradient-to-b from-primary-200 to-primary-300 dark:from-primary-100 dark:to-primary-200 rounded-full"></div>
-              <SplitText
-                text={`Welcome back,`}
-                className="text-3xl md:text-6xl font-extrabold theme-text-primary text-left"
-                delay={100}
-                duration={2}
-                ease="power3.out"
-                splitType="words"
-                from={{ opacity: 0, y: 40 }}
-                to={{ opacity: 1, y: 0 }}
-              />
-              <SplitText
-                text={<span className="whitespace-nowrap">{user.name}!</span>}
-                className="text-3xl md:text-6xl font-extrabold theme-text-primary text-left"
-                delay={400}
-                duration={2}
-                ease="power3.out"
-                splitType="words"
-                from={{ opacity: 0, y: 40 }}
-                to={{ opacity: 1, y: 0 }}
-              />
-            </div>
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3, duration: 0.8 }}
+              className="relative w-full flex flex-col items-center"
+            >
+              <h1 className="text-3xl md:text-6xl font-extrabold theme-text-primary">
+                Welcome {user?.name || 'User'}!
+              </h1>
+            </motion.div>
 
             {/* Subtitle with subtle animation */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3, duration: 0.8 }}
-              className="pl-6"
+              className="w-full"
             >
               <p className="text-xl md:text-2xl theme-text-secondary font-medium leading-relaxed">
-                {t("howCanIHelp", "How can I assist you today?")}
+                How can I assist you today?
               </p>
 
               {/* Decorative elements */}
-              <div className="flex items-center mt-6 space-x-4">
-                <div className="h-2.5 w-12 bg-primary-200 dark:bg-primary-100 rounded-full"></div>
-                <div className="h-2.5 w-24 bg-primary-100 dark:bg-primary-200 rounded-full"></div>
-                <div className="h-2.5 w-12 bg-primary-50 dark:bg-primary-300 rounded-full"></div>
+              <div className="flex items-center justify-center mt-6 space-x-4">
+                <div className="h-2.5 w-12 bg-primary-300 dark:bg-primary-100 rounded-full"></div>
+                <div className="h-2.5 w-24 bg-primary-200 dark:bg-primary-200 rounded-full"></div>
+                <div className="h-2.5 w-12 bg-primary-100 dark:bg-primary-300 rounded-full"></div>
               </div>
             </motion.div>
 
@@ -172,7 +168,7 @@ export function Home() {
                 transition: { duration: 0.3 },
               }}
               whileTap={{ scale: 0.95 }}
-              className="pl-6 pt-2"
+              className="pt-2"
             >
               <button
                 className="px-8 py-3 theme-button-primary font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform flex items-center space-x-2 group"
@@ -187,7 +183,7 @@ export function Home() {
       </section>
 
       {/* Content */}
-      <div className="w-[90%] px-3 mb-20 sm:px-6 lg:px-8 py-8 mx-auto">
+      <div className="w-[90%] px-3 mb-20 sm:px-6 lg:px-8 py-14 mx-auto">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
           {features.map((feature) => (
             <motion.div
@@ -214,7 +210,7 @@ export function Home() {
                 <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-white/5 dark:bg-white/10 rounded-full blur-3xl transform group-hover:scale-150 transition-transform duration-500"></div>
               </div>
 
-              <div className="text-center flex flex-col justify-center items-center h-full space-y-2 sm:space-y-4 relative z-10">
+              <div className="text-center flex flex-col justify-center items-center space-y-2 sm:space-y-4 relative z-10">
                 {/* Icon Container - Removed background and border */}
                 <motion.div
                   whileHover={{ scale: 1.1, rotate: 5 }}

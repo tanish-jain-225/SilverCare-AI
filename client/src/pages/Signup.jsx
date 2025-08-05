@@ -1,24 +1,32 @@
 import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { User, Mail, Lock } from "lucide-react";
-import { useTranslation } from "react-i18next";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { VoiceButton } from "../components/voice/VoiceButton";
 import { useApp } from "../context/AppContext";
 import { useVoice } from "../hooks/useVoice";
 import { motion } from "framer-motion";
+import LoadingScreen from "../components/LoadingScreen";
 
 export function Signup() {
   const navigate = useNavigate();
-  const { t } = useTranslation();
-  const { signup } = useApp();
+  const location = useLocation();
+  const { signup, isAuthenticated, loading } = useApp();
   const { speak } = useVoice();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isPostSignupLoading, setIsPostSignupLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Redirect to user-details if already authenticated (instead of home)
+  React.useEffect(() => {
+    if (!loading && isAuthenticated && location.pathname === "/signup") {
+      navigate("/user-details", { replace: true });
+    }
+  }, [isAuthenticated, loading, navigate, location.pathname]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -26,16 +34,43 @@ export function Signup() {
     setError("");
 
     try {
-      const success = await signup(name, email, password);
-      if (success) {
+      await signup(name, email, password);
+      // If we reach here, signup was successful
+      setIsPostSignupLoading(true);
+      speak("Account created successfully! Setting up your profile...");
+      
+      // Navigate after a brief loading period
+      setTimeout(() => {
         navigate("/user-details");
-      } else {
-        setError("Signup failed. Please try again.");
-        speak("Signup failed. Please try again.");
-      }
+      }, 2500);
     } catch (err) {
-      setError("Signup failed. Please try again.");
-      speak("Signup failed. Please try again.");
+      // Display the detailed error message from AppContext, falling back to code-based messages
+      let errorMessage = err.message;
+      
+      if (!errorMessage && err.code) {
+        // Fallback error messages if AppContext didn't provide a message
+        switch (err.code) {
+          case "auth/email-already-in-use":
+            errorMessage = "Account already in use. Please log in or use a different email.";
+            break;
+          case "auth/invalid-email":
+            errorMessage = "Invalid email address. Please enter a valid email.";
+            break;
+          case "auth/weak-password":
+            errorMessage = "Password is too weak. Please use at least 6 characters.";
+            break;
+          case "auth/network-request-failed":
+            errorMessage = "Network error. Please check your connection and try again.";
+            break;
+
+          default:
+            errorMessage = "Signup failed. Please try again.";
+        }
+      } else if (!errorMessage) {
+        errorMessage = "Signup failed. Please try again.";
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -51,6 +86,12 @@ export function Signup() {
     }
   };
 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+    }
+  };
+
   React.useEffect(() => {
     speak("Welcome! Let's create your SilverCare AI account.");
   }, [speak]);
@@ -59,6 +100,16 @@ export function Signup() {
     document.documentElement.classList.remove("dark");
     document.documentElement.classList.add("light");
   }, []);
+
+  // Show post-signup loading screen
+  if (isPostSignupLoading) {
+    return <LoadingScreen message="Creating your account and setting up your profile..." />;
+  }
+
+  // Show loading while checking authentication status
+  if (loading) {
+    return <LoadingScreen message="Checking authentication status..." />;
+  }
 
   return (
     <div
@@ -76,7 +127,7 @@ export function Signup() {
             <div className="logo">
               <img
                 src="/voice-search.png"
-                alt="SilverCare AI Logo"
+                alt="SilverCareAI Logo"
                 className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mx-auto"
               />
             </div>
@@ -86,7 +137,7 @@ export function Signup() {
               transition={{ duration: 0.6 }}
               className="text-4xl md:text-5xl font-extrabold text-gray-700 bg-clip-text md:mb-2 leading-tight"
             >
-              SilverCare AI
+              SilverCareAI
             </motion.h1>
           </div>
           <motion.p
@@ -95,7 +146,7 @@ export function Signup() {
             transition={{ duration: 0.7 }}
             className="text-lg sm:text-xl md:text-2xl font-bold text-gray-600 tracking-wide leading-relaxed"
           >
-            {t("Sign Up")}
+            Sign Up
           </motion.p>
         </div>
 
@@ -107,6 +158,7 @@ export function Signup() {
         >
           <form
             onSubmit={handleSubmit}
+            onKeyDown={handleKeyDown}
             className="space-y-5 sm:space-y-6 md:space-y-8"
             autoComplete="off"
           >
@@ -114,7 +166,7 @@ export function Signup() {
             <div className="relative flex items-center min-w-0">
               <Input
                 type="text"
-                label={t("name")}
+                label="Name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 icon={User}
@@ -127,6 +179,7 @@ export function Signup() {
                   size="sm"
                   className="!w-9 sm:!w-10"
                   type="button"
+                  tabIndex={-1}
                 />
               </div>
             </div>
@@ -135,7 +188,7 @@ export function Signup() {
             <div className="relative flex items-center min-w-0">
               <Input
                 type="email"
-                label={t("email")}
+                label="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 icon={Mail}
@@ -148,6 +201,7 @@ export function Signup() {
                   size="sm"
                   className="!w-9 sm:!w-10"
                   type="button"
+                  tabIndex={-1}
                 />
               </div>
             </div>
@@ -156,18 +210,19 @@ export function Signup() {
             <div className="relative flex items-center min-w-0">
               <Input
                 type="password"
-                label={t("password")}
+                label="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 icon={Lock}
                 required
-                className="text-base sm:text-lg md:text-xl"
+                className="text-base sm:text-lg md:text-2xl"
                 voiceButton={
                   <VoiceButton
                     onResult={handleVoiceInput("password")}
                     size="sm"
                     className="!w-9 sm:!w-10"
                     type="button"
+                    tabIndex={-1}
                   />
                 }
               />
@@ -192,19 +247,19 @@ export function Signup() {
               className="w-full mt-2 text-lg sm:text-xl md:text-2xl font-semibold"
               size="xl"
             >
-              {isLoading ? "Creating Account..." : t("signupButton")}
+              {isLoading ? "Creating Account..." : "Sign Up"}
             </Button>
           </form>
 
           {/* Login Link */}
           <div className="text-center mt-4">
             <p className="text-gray-700 font-semibold text-sm sm:text-base md:text-lg leading-relaxed">
-              {t("haveAccount")}{" "}
+              Already have an account?{" "}
               <Link
                 to="/login"
                 className="text-blue-500 hover:text-blue-800 font-semibold"
               >
-                {t("login")}
+                Log in
               </Link>
             </p>
           </div>

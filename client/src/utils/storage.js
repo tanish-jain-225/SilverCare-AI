@@ -1,4 +1,6 @@
 export const storage = {
+  // A simple wrapper for localStorage with JSON serialization
+  // and error handling. It provides methods to set, get, remove,
   set: (key, value) => {
     try {
       if (value === null || value === undefined) {
@@ -16,7 +18,13 @@ export const storage = {
   get: (key) => {
     try {
       const item = localStorage.getItem(key);
-      return item ? JSON.parse(item) : null;
+      if (!item) return null;
+      try {
+        return JSON.parse(item);
+      } catch (jsonError) {
+        // If not valid JSON, return as string
+        return item;
+      }
     } catch (error) {
       console.error('Error reading from localStorage:', error);
       return null;

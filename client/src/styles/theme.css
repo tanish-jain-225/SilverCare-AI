@@ -48,7 +48,7 @@
 }
 
 .theme-input {
-  @apply bg-white dark:bg-dark-50 border-primary-100 dark:border-dark-600 focus:border-primary-200 dark:focus:border-dark-700;
+  @apply bg-white dark:bg-dark-50 border-primary-100 dark:border-dark-600;
 }
 
 .theme-accent {
@@ -75,3 +75,4 @@
 .feature-card-orange {
   @apply bg-accent-orange/10 dark:bg-accent-orange/20 text-accent-orange dark:text-accent-orange;
 }
+

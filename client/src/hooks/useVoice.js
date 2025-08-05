@@ -12,15 +12,22 @@ export function useVoice() {
     };
   }, []);
 
-  const speak = useCallback(async (text) => {
+  const speak = useCallback(async (text, options = {}) => {
     if (!text) return;
     try {
       setIsSpeaking(true);
-      await voiceService.speak(text);
+      await voiceService.speak(text, {
+        ...options,
+        onended: () => {
+          setIsSpeaking(false);
+          if (typeof options.onended === 'function') {
+            options.onended();
+          }
+        },
+      });
     } catch (error) {
-      console.error('Speech error:', error);
-    } finally {
       setIsSpeaking(false);
+      console.error('Speech error:', error);
     }
   }, []);
 

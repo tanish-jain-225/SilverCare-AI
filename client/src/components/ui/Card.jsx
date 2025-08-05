@@ -69,10 +69,3 @@ Card.propTypes = {
   fullWidth: PropTypes.bool,
   tabIndex: PropTypes.number,
 };
-
-Card.defaultProps = {
-  className: '',
-  hover: true,
-  variant: 'default',
-  fullWidth: false,
-};
