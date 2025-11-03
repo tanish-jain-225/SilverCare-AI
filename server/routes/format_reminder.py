@@ -1,5 +1,4 @@
 from flask import Blueprint, request, jsonify
-from together import Together
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 from bson import ObjectId
@@ -57,13 +56,13 @@ def convert_to_json_friendly(document):
 
 
 # Initialize MongoDB connection settings
+
 mongo_url = os.environ.get('MONGO_URI')
 db_name = os.environ.get('DB_NAME')
 reminders_collection_name = os.environ.get('REMINDERS_COLLECTION')
 
-# Initialize Together AI client
-together_api_key = os.environ.get('TOGETHER_API_KEY')
-client = Together(api_key=together_api_key)
+# Use shared AI helpers from the centralized utils module
+from routes.utils.ai_utils import parse_reminder_from_text
 
 # Initialize MongoDB client
 if mongo_url and db_name and reminders_collection_name:
@@ -284,38 +283,10 @@ Examples using context:
 - "appointment tomorrow" → [{{"title": "appointment", "date": "{(datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')}", "time": "10:00 AM"}}]
 """
 
-    response = client.chat.completions.create(
-        model="deepseek-ai/DeepSeek-V3",
-        messages=[
-            {
-                "role": "system",
-                "content": enhanced_system_prompt
-            },
-            {
-                "role": "user",
-                "content": f'Parse this into reminders with intelligent date/time inference: {user_input}'
-            }
-        ]
-    )
-    # Robustly extract content from LLM response
-    content = None
-    # If response is an iterator, convert to list and extract first element
-    if hasattr(response, '__iter__') and not hasattr(response, 'choices') and not isinstance(response, (str, bytes, dict)):
-        response = list(response)
-        if response:
-            response = response[0]
-    # If response is a tuple, extract first element
-    if isinstance(response, tuple):
-        response = response[0]
-    # Now, try to get content safely
-    choices = getattr(response, 'choices', None)
-    if choices and isinstance(choices, list) and len(choices) > 0:
-        first_choice = choices[0]
-        message = getattr(first_choice, 'message', None)
-        if message and hasattr(message, 'content'):
-            content = message.content
-    if not isinstance(content, str):
-        return jsonify({"error": "No valid content returned from LLM."}), 500
+    # Use shared AI util to get LLM content
+    content = parse_reminder_from_text(user_input, date_context= date_context)
+    if not isinstance(content, str) or not content:
+        return jsonify({"error": "No valid content returned from LLM or AI helper failed."}), 500
     
 
     # Try to extract an array first - handle markdown code blocks.

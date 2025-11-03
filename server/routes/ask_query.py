@@ -1,6 +1,5 @@
 # ================== IMPORTS & GLOBALS ==================
 from flask import Blueprint, request, jsonify
-from together import Together
 from dotenv import load_dotenv
 from textblob import TextBlob
 from bson import ObjectId
@@ -8,7 +7,7 @@ from pymongo import MongoClient
 from datetime import datetime, timedelta
 
 from routes.format_reminder import save_to_mongodb
-from routes.utils.ai_utils import analyze_emergency_intent, analyze_reminder_intent
+from routes.utils.ai_utils import analyze_emergency_intent, analyze_reminder_intent, llm_client, GEMINI_MODEL
 
 import json as pyjson
 
@@ -27,9 +26,7 @@ db = mongo_client[DB_NAME]
 chat_sessions_col = db[COLLECTION_NAME]
 
 
-# LLM API key setup
-api_key = os.getenv("TOGETHER_API_KEY")
-llm_client = Together(api_key=api_key)
+# LLM client now provided by routes.utils.ai_utils (centralized)
 
 # Chat blueprint 
 chat_bp = Blueprint('chat', __name__)
@@ -397,8 +394,7 @@ def setup_reminder(user_input, user_id):
     Process reminder creation, formatting, and saving. Returns result dict or error.
     """
     try:
-        together_api_key = os.getenv('TOGETHER_API_KEY')
-        reminder_client = Together(api_key=together_api_key)
+        reminder_client = llm_client
         date_context = smart_date_time_context('context')
         enhanced_system_prompt = f"""You are an expert reminder creation assistant with advanced date/time intelligence. Parse user input into structured reminders with perfect contextual inference.
 
@@ -413,7 +409,7 @@ CORE INSTRUCTIONS:
 
 CRITICAL: Never return null/empty dates or times. Always infer using context and defaults above."""
         response = reminder_client.chat.completions.create(
-            model="deepseek-ai/DeepSeek-V3",
+            model=GEMINI_MODEL,
             messages=[
                 {"role": "system", "content": enhanced_system_prompt},
                 {"role": "user", "content": f'Parse this into a reminder with intelligent date/time inference: {user_input}'}
@@ -422,7 +418,7 @@ CRITICAL: Never return null/empty dates or times. Always infer using context and
 
         def extract_content(resp):
             try:
-                # Handle Together API response object
+                # Handle API response object
                 if hasattr(resp, 'choices') and resp.choices:
                     if hasattr(resp.choices[0], 'message') and hasattr(resp.choices[0].message, 'content'):
                         return resp.choices[0].message.content
@@ -730,14 +726,14 @@ def send_message():
     messages.append({"role": "user", "content": user_message})
 
     response = llm_client.chat.completions.create(
-        model="deepseek-ai/DeepSeek-V3",
+        model=GEMINI_MODEL,
         messages=messages
     )
 
     # --- Robustly extract content from response ---
     def extract_content(resp):
         try:
-            # Handle Together API response object
+            # Handle API response object
             if hasattr(resp, 'choices') and resp.choices:
                 if hasattr(resp.choices[0], 'message') and hasattr(resp.choices[0].message, 'content'):
                     return resp.choices[0].message.content

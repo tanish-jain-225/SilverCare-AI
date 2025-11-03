@@ -51,7 +51,7 @@ SilverCare-AI is a full-stack, voice-first AI assistant designed for senior citi
 ### Backend
 
 - **Python 3.9+ (Flask)**: Lightweight REST API framework for microservices.
-- **Together AI**: Advanced AI/LLM integration for intelligent responses.
+- **Gemini AI**: Advanced AI/LLM integration for intelligent responses.
 - **TextBlob**: Natural language processing for sentiment analysis.
 - **MongoDB**: Document database for emergency contacts and user data.
 - **Firebase Firestore**: Real-time database for user profiles and reminders.
@@ -244,7 +244,7 @@ VITE_SERVER_URL=http://localhost:5000
 #### Server Environment Variables (`server/.env`)
 
 ```env
-TOGETHER_API_KEY=your_together_ai_api_key
+AI_API_KEY=your_ai_api_key
 MONGODB_URI=your_mongodb_connection_string
 FIREBASE_PROJECT_ID=your_firebase_project_id
 FLASK_ENV=development
@@ -522,7 +522,7 @@ We welcome contributions! Here's how you can help:
 
 - **Python Dependencies**: Use virtual environment and Python 3.9+
 - **MongoDB Connection**: Verify connection string and network access
-- **API Key Errors**: Check Together AI and other service API keys
+- **API Key Errors**: Check AI and other service API keys
 - **CORS Errors**: Ensure frontend domain is allowed in CORS settings
 
 #### Voice Features

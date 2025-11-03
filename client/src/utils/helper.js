@@ -99,7 +99,7 @@ export const formatTimestamp = (timestamp, options = {}) => {
 };
 
 /**
- * Format date and time together with consistent 12-hour format
+ * Format date and time with consistent 12-hour format
  * @param {string|Date} timestamp - Timestamp to format
  * @param {boolean} includeDate - Whether to include date
  * @returns {string} Formatted date and time
